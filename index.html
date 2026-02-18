@@ -3,553 +3,451 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>工程實績地圖 | EV Charging Project Map</title>
-    <!-- Tailwind CSS -->
+    <title>EV Map v13.0 Filtered</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    
     <style>
-        body { 
-            font-family: 'Noto Sans TC', sans-serif; 
-            height: 100vh; 
-            overflow: hidden; 
-            display: flex; 
-            flex-direction: column;
-        }
-        /* RWD: Mobile first */
-        #main-container {
-            display: flex;
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-            flex-direction: column-reverse; /* 手機版列表在下 */
-        }
+        body { margin:0; padding:0; height: 100vh; display: flex; flex-direction: column; font-family: 'Microsoft JhengHei', sans-serif; background: #f1f5f9; }
+        #app { display: flex; flex: 1; overflow: hidden; }
         
-        /* Desktop styles */
-        @media (min-width: 768px) {
-            #main-container {
-                flex-direction: row; /* 電腦版列表在左 */
-            }
-            #sidebar {
-                width: 400px;
-                height: 100%;
-                z-index: 20;
-                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            }
+        /* Sidebar */
+        #sidebar { width: 420px; background: #fff; display: flex; flex-direction: column; border-right: 1px solid #cbd5e1; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
+        #sidebar-header { padding: 12px; background: #0f172a; color: white; }
+        #project-list { flex: 1; overflow-y: auto; background: #f8fafc; padding: 10px; }
+        
+        /* Map */
+        #map { flex: 1; background: #e2e8f0; position: relative; }
+        
+        /* Components */
+        .card { 
+            background: white; padding: 10px; margin-bottom: 8px; border-radius: 6px; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); border-left: 4px solid #cbd5e1;
+            transition: all 0.2s; position: relative;
         }
+        .card:hover { transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        .action-btn { 
+            width: 100%; border: none; padding: 8px; border-radius: 4px; 
+            cursor: pointer; font-weight: bold; margin-top: 5px; font-size: 13px;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: background 0.2s;
+        }
+        .btn-blue { background: #3b82f6; color: white; }
+        .btn-blue:hover { background: #2563eb; }
+        
+        .btn-red { background: #ef4444; color: white; }
+        .btn-red:hover { background: #dc2626; }
+        .btn-red:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
 
-        #sidebar {
-            background: white;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            /* Mobile specific sidebar */
-            height: 40vh; 
-            width: 100%;
+        .api-input {
+            width: 100%; padding: 6px 8px; border-radius: 4px; border: 1px solid #475569; 
+            background: #334155; color: white; font-size: 12px; margin-bottom: 4px;
         }
+        .api-input:focus { outline: 2px solid #60a5fa; border-color: transparent; }
 
-        #map-wrapper {
-            flex: 1;
-            position: relative;
+        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
+        .config-label { font-size: 10px; color: #94a3b8; }
+        
+        .fix-mini-btn {
+            position: absolute; right: 10px; top: 10px;
+            background: #ef4444; color: white; font-size: 11px; padding: 4px 8px; 
+            border-radius: 20px; cursor: pointer; border: none; font-weight: bold;
+            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+            z-index: 5;
         }
+        .fix-mini-btn:hover { background: #dc2626; }
+        .fix-mini-btn i { margin-right: 3px; }
 
-        #map {
-            width: 100%;
-            height: 100%;
+        .log-window {
+            background: #0f172a; color: #4ade80; padding: 8px; font-family: monospace; font-size: 11px;
+            height: 120px; overflow-y: auto; border-top: 4px solid #f59e0b;
         }
-
-        /* 滾動條美化 */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-
-        /* 卡片互動效果 */
-        .project-card {
-            transition: all 0.2s ease;
-            border-left: 4px solid transparent;
-        }
-        .project-card:hover {
-            background-color: #f8fafc;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        .project-card.active {
-            background-color: #ecfdf5; /* 淺綠色背景 */
-            border-left: 4px solid #10b981; /* 綠色邊條 */
-        }
-        /* 缺座標的卡片樣式 */
-        .project-card.missing-coords {
-            opacity: 0.7;
-            background-color: #fff1f2; /* 紅色背景 */
-            border-left: 4px solid #f43f5e;
-        }
-
-        /* 修復進度條 */
-        #fix-progress {
-            display: none;
-            background: #1e293b;
-            color: white;
-            padding: 8px 16px;
-            font-size: 13px;
-            align-items: center;
-            justify-content: space-between;
+        .log-entry { margin-bottom: 2px; border-bottom: 1px solid #1e293b; padding-bottom: 2px; word-break: break-all; }
+        
+        .filter-badge {
+            background: #eab308; color: black; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 5px; display: none;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body>
 
-    <!-- 隱藏 Iframe 用於 Ragic 寫入 (Code of Conduct Rule #1) -->
-    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
-    
-    <!-- 隱藏 Form 用於提交資料 -->
+    <!-- 核心技術：隱藏 iframe 用於跨域寫入 -->
+    <iframe name="hidden_iframe" style="display:none;"></iframe>
     <form id="ragic_form" target="hidden_iframe" method="POST" style="display:none;"></form>
 
-    <!-- Header -->
-    <header class="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-30">
-        <div class="flex items-center gap-3">
-            <i class="fas fa-charging-station text-green-400 text-2xl"></i>
-            <div>
-                <h1 class="font-bold text-lg tracking-wide">EV Charging Map</h1>
-                <p class="text-xs text-slate-400">工程實績展示系統</p>
-            </div>
-        </div>
-        <div class="text-sm">
-            <span id="project-count" class="bg-green-600 px-3 py-1 rounded-full text-xs font-bold">載入中...</span>
-        </div>
-    </header>
-
-    <div id="main-container">
-        <!-- Sidebar: List & Filter -->
-        <aside id="sidebar">
-            <!-- Filter Section -->
-            <div class="p-4 border-b bg-white z-10 space-y-2">
-                <div class="relative">
-                    <i class="fas fa-filter absolute left-3 top-3 text-gray-400"></i>
-                    <select id="category-filter" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none bg-white cursor-pointer text-sm font-medium text-gray-700">
-                        <option value="all">顯示所有案件類型</option>
-                        <!-- options will be injected by JS -->
-                    </select>
-                    <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-400 pointer-events-none"></i>
+    <div id="app">
+        <!-- Sidebar -->
+        <div id="sidebar">
+            <div id="sidebar-header">
+                <div class="flex justify-between items-center mb-2">
+                    <h1 class="text-lg font-bold flex items-center gap-2">
+                        <i class="fas fa-filter text-yellow-400"></i> 工程實績地圖 v13
+                    </h1>
+                    <span class="text-[10px] bg-slate-700 px-2 py-1 rounded text-slate-300">精準除錯版</span>
                 </div>
                 
-                <!-- Admin Tools: Fix Data Button -->
-                <div id="admin-tools" class="hidden bg-red-50 border border-red-200 rounded p-2 flex justify-between items-center">
-                    <div class="text-xs text-red-700 font-bold">
-                        <i class="fas fa-exclamation-triangle mr-1"></i>
-                        <span id="missing-count">0</span> 筆資料缺座標
+                <!-- Main Config -->
+                <div>
+                    <input type="password" id="api-key" class="api-input" placeholder="貼上 Ragic API Key">
+                    <div class="flex gap-2">
+                        <select id="server-select" class="api-input w-1/3 py-1">
+                            <option value="ap14">ap14</option>
+                            <option value="ap13">ap13</option>
+                        </select>
+                        <button onclick="loadData()" class="action-btn btn-blue mt-0 py-1 relative">
+                            <i class="fas fa-sync-alt"></i> 載入資料
+                        </button>
                     </div>
-                    <button onclick="startAutoFix()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded transition shadow-sm font-bold">
-                        <i class="fas fa-magic mr-1"></i> 自動修復
+                </div>
+
+                <!-- Field Settings (可折疊) -->
+                <div class="mt-2 pt-2 border-t border-slate-600">
+                    <div class="flex justify-between items-center cursor-pointer" onclick="document.getElementById('field-config').classList.toggle('hidden')">
+                        <span class="text-xs text-slate-300 font-bold"><i class="fas fa-cog"></i> 欄位 ID 設定</span>
+                        <i class="fas fa-chevron-down text-slate-400 text-xs"></i>
+                    </div>
+                    <div id="field-config" class="hidden">
+                        <div class="config-grid">
+                            <div><div class="config-label">名稱 ID</div><input id="fid-name" class="api-input" value="1000167"></div>
+                            <div><div class="config-label">類別 ID</div><input id="fid-cat" class="api-input" value="1000372"></div>
+                            <div><div class="config-label">地址 ID</div><input id="fid-addr" class="api-input" value="1000190"></div>
+                            <div><div class="config-label">座標 ID</div><input id="fid-coords" class="api-input" value="1000417"></div>
+                        </div>
+                        <button onclick="applyFields()" class="w-full bg-slate-600 hover:bg-slate-500 text-white text-[10px] py-1 rounded mt-1">更新設定並重繪</button>
+                    </div>
+                </div>
+
+                <!-- Batch Tools -->
+                <div id="tools-panel" class="hidden mt-2">
+                    <button onclick="startAutoFix()" id="btn-fix" class="action-btn btn-red" disabled>
+                        <i class="fas fa-magic"></i> 批量修復 (<span id="fix-count">0</span>)
                     </button>
+                    <div class="text-[10px] text-gray-400 mt-1 text-center">
+                        <i class="fas fa-info-circle"></i> 請在 GitHub Pages 或本機執行以確保寫入功能正常
+                    </div>
                 </div>
             </div>
 
-            <!-- Fix Progress Bar -->
-            <div id="fix-progress">
-                <span><i class="fas fa-sync fa-spin mr-2"></i> 正在修復資料...</span>
-                <span id="fix-status" class="font-mono text-yellow-400">0%</span>
-            </div>
-
-            <!-- Project List -->
-            <div id="project-list" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 bg-gray-50">
-                <!-- Template for Loading -->
-                <div class="text-center py-10 text-gray-500">
-                    <i class="fas fa-circle-notch fa-spin text-2xl text-green-500 mb-2"></i>
-                    <p>正在連線至資料庫...</p>
+            <div id="project-list">
+                <div class="h-full flex flex-col items-center justify-center text-gray-400 text-sm">
+                    <i class="fas fa-arrow-up mb-2 text-2xl animate-bounce"></i>
+                    <span>請輸入 Key 並載入資料</span>
                 </div>
             </div>
-        </aside>
 
-        <!-- Map Section -->
-        <main id="map-wrapper">
-            <div id="map"></div>
-            
-            <!-- Floating Controls (Optional) -->
-            <button onclick="resetMap()" class="absolute bottom-6 right-6 bg-white p-3 rounded-full shadow-lg hover:bg-gray-100 z-10 transition text-gray-700" title="回到全覽">
-                <i class="fas fa-compress-arrows-alt"></i>
-            </button>
-        </main>
+            <div id="log-window" class="log-window hidden">
+                <div class="text-yellow-400 border-b border-gray-700 pb-1 mb-1">> 系統日誌</div>
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div id="map"></div>
     </div>
 
-    <!-- CONFIGURATION & LOGIC -->
     <script>
-        /**
-         * CTO CONFIGURATION ZONE
-         */
-        const CONFIG = {
-            // Ragic 表單 API URL (末端不帶參數)
-            RAGIC_API_URL: 'https://ap13.ragic.com/ChuckChargingCC/ragicproject-management/7', 
-            
-            // Google Maps API Key
-            GOOGLE_MAPS_API_KEY: 'AIzaSyDIYt9AZImHlL7xpb-30cyYOuAXsFufufw',
-
-            // 欄位對應表 (Field Mapping)
-            FIELDS: {
-                NAME:       1000167, // 專案名稱
-                ADDRESS:    1000190, // 詳細地址
-                COORDS:     1000417, // 經緯度 (將被寫入的欄位)
-                CATEGORY:   1000372, // 案件類型
-                DATE:       1000176  // 列案日期
-            },
-
-            // 地圖設定
-            MAP_CENTER: { lat: 23.6, lng: 120.9 }, // 台灣中心
-            MAP_ZOOM: 7
+        // --- Global State ---
+        let CONFIG = {
+            RAGIC_PATH: "ChuckChargingCC/ragicproject-management/7",
+            MAP_KEY: "AIzaSyDIYt9AZImHlL7xpb-30cyYOuAXsFufufw"
+        };
+        
+        // 當前使用的 Field IDs
+        let FIELDS = {
+            NAME: "1000167", CAT: "1000372", ADDR: "1000190", COORDS: "1000417"
         };
 
-        // 全域變數
-        let map;
-        let geocoder;
-        let markers = [];
-        let allProjects = [];
-        let infoWindow;
+        let map, geocoder, allData = [], markers = [], currentApiKey = "";
+        
+        const COLORS = { "default": "#64748b", "家用": "#3b82f6", "商用": "#10b981", "公共": "#f59e0b", "快充": "#ef4444" };
 
-        /**
-         * 1. 初始化 Google Maps
-         */
-        function initMap() {
-            map = new google.maps.Map(document.getElementById("map"), {
-                zoom: CONFIG.MAP_ZOOM,
-                center: CONFIG.MAP_CENTER,
-                styles: [
-                    { "featureType": "poi", "stylers": [{ "visibility": "off" }] },
-                    { "featureType": "transit", "stylers": [{ "visibility": "off" }] }
-                ],
-                mapTypeControl: false,
-                fullscreenControl: false,
-                streetViewControl: false
-            });
-
-            infoWindow = new google.maps.InfoWindow();
-            geocoder = new google.maps.Geocoder();
-
-            // 地圖載入後，開始抓取資料
-            fetchRagicData();
+        function log(msg, type='info') {
+            const win = document.getElementById('log-window');
+            win.classList.remove('hidden');
+            const color = type === 'err' ? '#f87171' : type === 'warn' ? '#facc15' : '#4ade80';
+            const time = new Date().toLocaleTimeString('zh-TW', {hour12:false});
+            win.innerHTML += `<div class="log-entry" style="color:${color}">[${time}] ${msg}</div>`;
+            win.scrollTop = win.scrollHeight;
         }
 
-        /**
-         * 2. 抓取 Ragic 資料 (使用 JSONP)
-         */
-        function fetchRagicData() {
-            window.ragicCallback = function(response) {
-                const rawData = Object.values(response || {});
-                processData(rawData);
+        function initMap() {
+            try {
+                map = new google.maps.Map(document.getElementById("map"), {
+                    center: { lat: 23.6, lng: 120.9 }, zoom: 8, mapTypeControl: false
+                });
+                geocoder = new google.maps.Geocoder();
+                log("Google Maps API 載入成功");
+            } catch (e) { log("地圖載入失敗: " + e.message, "err"); }
+        }
+
+        // --- Data Loading ---
+        function loadData() {
+            const key = document.getElementById('api-key').value.trim();
+            if (!key) return alert("請輸入 Ragic API Key");
+            currentApiKey = key;
+
+            // 讀取 UI 上的設定
+            FIELDS.NAME = document.getElementById('fid-name').value;
+            FIELDS.CAT = document.getElementById('fid-cat').value;
+            FIELDS.ADDR = document.getElementById('fid-addr').value;
+            FIELDS.COORDS = document.getElementById('fid-coords').value;
+
+            const server = document.getElementById('server-select').value;
+            const url = `https://${server}.ragic.com/${CONFIG.RAGIC_PATH}?api&naming=EID&APIKey=${encodeURIComponent(key)}&callback=ragicCallback`;
+
+            log(`連線中 (${server})...`, "info");
+            
+            window.ragicCallback = function(res) {
+                if (!res || res.status === 'ERROR') {
+                    log(`API 錯誤: ${res?.msg || '未知'}`, "err");
+                    return alert("讀取失敗！請檢查 Key 或切換伺服器。");
+                }
+                
+                let data = Object.values(res);
+                const originalCount = data.length;
+
+                // === CTO Filter Logic: 過濾無地址資料 ===
+                data = data.filter(item => {
+                    const addr = item[FIELDS.ADDR];
+                    // 確保地址存在、是字串、且不是空字串
+                    return addr && typeof addr === 'string' && addr.trim().length > 0;
+                });
+                
+                const filteredCount = originalCount - data.length;
+                
+                log(`讀取: ${originalCount} 筆`, "info");
+                if (filteredCount > 0) {
+                    log(`已自動隱藏 ${filteredCount} 筆「無地址」資料`, "warn");
+                }
+                log(`實際顯示: ${data.length} 筆`, "info");
+
+                allData = data;
+                
+                // 智能偵測 (如果過濾後還有資料)
+                if (data.length > 0) detectFieldIds(data[0]);
+
+                renderUI();
             };
 
             const script = document.createElement('script');
-            script.src = `${CONFIG.RAGIC_API_URL}?api&callback=ragicCallback`; 
-            script.onerror = () => {
-                document.getElementById('project-list').innerHTML = 
-                    `<div class="p-4 text-red-500 text-center">無法連線至資料庫。<br>請檢查 API URL。</div>`;
-            };
+            script.src = url;
+            script.onerror = () => log("連線中斷 (Network Error)", "err");
             document.body.appendChild(script);
         }
 
-        /**
-         * 3. 資料處理 (允許顯示無座標資料)
-         */
-        function processData(data) {
-            let missingCount = 0;
-
-            allProjects = data.map(record => {
-                const latLngStr = record[CONFIG.FIELDS.COORDS];
-                let position = null;
-
-                // 解析座標
-                if (latLngStr && latLngStr.includes(',')) {
-                    const [lat, lng] = latLngStr.split(',').map(Number);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        // 隱私抖動
-                        const jitter = () => (Math.random() - 0.5) * 0.0015; 
-                        position = { 
-                            lat: lat + jitter(), 
-                            lng: lng + jitter() 
-                        };
+        // --- Field Detection ---
+        function detectFieldIds(record) {
+            // 如果當前設定的地址 ID 讀不到東西，嘗試自動尋找
+            const currentAddrVal = record[FIELDS.ADDR];
+            if (!currentAddrVal) {
+                log("⚠️ 當前地址 ID 讀取為空，嘗試自動搜尋...", "warn");
+                Object.keys(record).forEach(k => {
+                    const v = String(record[k]);
+                    if (v.includes('市') && v.includes('區') && v.length > 5) {
+                        log(`💡 發現疑似地址欄位: ${k} (${v.substring(0,8)}...)`, "warn");
+                        // 更新 UI
+                        document.getElementById('fid-addr').value = k;
+                        FIELDS.ADDR = k;
+                        log("已自動更新地址欄位設定", "info");
                     }
-                } else {
-                    missingCount++;
-                }
-
-                return {
-                    id: record._ragicId, // Ragic Record ID
-                    name: record[CONFIG.FIELDS.NAME] || '未命名專案',
-                    fullAddress: record[CONFIG.FIELDS.ADDRESS] || '',
-                    displayAddress: getFuzzyAddress(record[CONFIG.FIELDS.ADDRESS] || ''),
-                    category: record[CONFIG.FIELDS.CATEGORY] || '其他工程',
-                    date: record[CONFIG.FIELDS.DATE] || '',
-                    position: position,
-                    hasCoords: position !== null // 標記是否有座標
-                };
-            });
-
-            // 依日期排序 (新 -> 舊)
-            allProjects.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            // 初始化 UI
-            initFilters();
-            renderProjects(allProjects);
-            updateMapMarkers(allProjects);
-
-            // 如果有缺座標，顯示修復工具
-            if (missingCount > 0) {
-                document.getElementById('admin-tools').classList.remove('hidden');
-                document.getElementById('missing-count').textContent = missingCount;
-            } else {
-                document.getElementById('admin-tools').classList.add('hidden');
+                });
             }
         }
 
-        function getFuzzyAddress(fullAddr) {
-            const match = fullAddr.match(/.*?[縣市].*?[區鄉鎮市]/);
-            if (match) return match[0] + " ...";
-            if (fullAddr.length > 6) return fullAddr.substring(0, 6) + "...";
-            return fullAddr;
+        function applyFields() {
+            FIELDS.NAME = document.getElementById('fid-name').value;
+            FIELDS.CAT = document.getElementById('fid-cat').value;
+            FIELDS.ADDR = document.getElementById('fid-addr').value;
+            FIELDS.COORDS = document.getElementById('fid-coords').value;
+            // 重新載入以觸發過濾
+            if (currentApiKey) loadData();
         }
 
-        /**
-         * 4. 渲染列表 (處理無座標樣式)
-         */
-        function renderProjects(projects) {
-            const container = document.getElementById('project-list');
-            const countBadge = document.getElementById('project-count');
-            
-            countBadge.textContent = `${projects.length} 件實績`;
-            container.innerHTML = '';
-
-            if (projects.length === 0) {
-                container.innerHTML = `<div class="p-8 text-center text-gray-400">沒有符合條件的案件</div>`;
-                return;
-            }
-
-            projects.forEach(p => {
-                const card = document.createElement('div');
-                // 無座標加上 missing-coords 樣式
-                card.className = `project-card p-4 bg-white rounded-lg cursor-pointer border border-gray-100 shadow-sm mb-2 ${!p.hasCoords ? 'missing-coords' : ''}`;
-                card.dataset.id = p.id;
-                
-                const warningIcon = !p.hasCoords ? '<i class="fas fa-exclamation-circle text-red-500 mr-1" title="無地圖座標"></i>' : '<i class="fas fa-map-marker-alt w-4 text-center mr-1"></i>';
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">
-                            ${p.category}
-                        </span>
-                        <span class="text-xs text-gray-400">${p.date}</span>
-                    </div>
-                    <h3 class="font-bold text-gray-800 text-lg mb-1 truncate">${p.name}</h3>
-                    <div class="flex items-center text-gray-500 text-sm">
-                        ${warningIcon}
-                        <span class="truncate">${p.displayAddress}</span>
-                    </div>
-                `;
-
-                if (p.hasCoords) {
-                    card.addEventListener('click', () => {
-                        focusOnProject(p);
-                        document.querySelectorAll('.project-card').forEach(c => c.classList.remove('active'));
-                        card.classList.add('active');
-                    });
-                } else {
-                    card.style.cursor = 'default';
-                }
-
-                container.appendChild(card);
-            });
-        }
-
-        /**
-         * 5. 更新地圖標記 (只顯示有的)
-         */
-        function updateMapMarkers(projects) {
+        // --- Render ---
+        function renderUI() {
+            const list = document.getElementById('project-list');
+            list.innerHTML = '';
             markers.forEach(m => m.setMap(null));
             markers = [];
+
+            let fixCount = 0;
             const bounds = new google.maps.LatLngBounds();
-            let hasPoints = false;
 
-            projects.forEach(p => {
-                if (!p.hasCoords) return;
-
-                const marker = new google.maps.Marker({
-                    position: p.position,
-                    map: map,
-                    title: p.name
-                });
-
-                marker.addListener('click', () => {
-                    focusOnProject(p);
-                    const card = document.querySelector(`.project-card[data-id="${p.id}"]`);
-                    if (card) {
-                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        document.querySelectorAll('.project-card').forEach(c => c.classList.remove('active'));
-                        card.classList.add('active');
-                    }
-                });
-
-                markers.push(marker);
-                bounds.extend(p.position);
-                hasPoints = true;
-            });
-
-            if (hasPoints) {
-                map.fitBounds(bounds);
+            if (allData.length === 0) {
+                 list.innerHTML = '<div class="text-center p-5 text-gray-500">沒有符合條件的資料</div>';
+                 return;
             }
-        }
 
-        function focusOnProject(p) {
-            if (!p.hasCoords) return;
-            map.panTo(p.position);
-            map.setZoom(16);
+            allData.forEach(item => {
+                const id = item._ragicId;
+                const name = item[FIELDS.NAME] || '(無名稱)';
+                const addr = item[FIELDS.ADDR];
+                const coords = item[FIELDS.COORDS];
+                const cat = item[FIELDS.CAT] || 'default';
+                
+                // 檢查是否需要修復
+                const hasValidCoords = coords && coords.includes(',') && !isNaN(parseFloat(coords.split(',')[0]));
+                const needsFix = !hasValidCoords; // 因為我們已經過濾掉無地址的，所以剩下的只要沒座標就是待修復
+                
+                if (needsFix) fixCount++;
 
-            const contentString = `
-                <div class="p-2 min-w-[200px]">
-                    <h3 class="font-bold text-lg mb-1">${p.name}</h3>
-                    <p class="text-sm text-green-600 font-bold mb-2">${p.category}</p>
-                    <p class="text-sm text-gray-600 mb-1"><i class="fas fa-map-marker-alt mr-1"></i>${p.displayAddress}</p>
-                    <p class="text-xs text-gray-400">完工: ${p.date}</p>
-                    <a href="https://www.google.com/maps/dir/?api=1&destination=${p.fullAddress}" target="_blank" class="block mt-3 text-center bg-blue-500 text-white text-xs py-1.5 rounded hover:bg-blue-600 transition">
-                        <i class="fas fa-directions mr-1"></i> 導航前往
-                    </a>
-                </div>
-            `;
-            
-            infoWindow.setContent(contentString);
-            infoWindow.setPosition(p.position);
-            infoWindow.open(map);
-        }
-
-        function initFilters() {
-            const select = document.getElementById('category-filter');
-            const categories = [...new Set(allProjects.map(p => p.category))].filter(Boolean).sort();
-            
-            select.innerHTML = '<option value="all">顯示所有案件類型</option>';
-            categories.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat;
-                option.textContent = cat;
-                select.appendChild(option);
-            });
-
-            select.addEventListener('change', (e) => {
-                const val = e.target.value;
-                const filtered = val === 'all' ? allProjects : allProjects.filter(p => p.category === val);
-                renderProjects(filtered);
-                updateMapMarkers(filtered);
-            });
-        }
-
-        function resetMap() {
-            if(allProjects.length > 0) updateMapMarkers(allProjects);
-            document.getElementById('category-filter').value = 'all';
-            renderProjects(allProjects);
-        }
-
-        /**
-         * =========================================
-         * CTO 核心功能: 自動修復資料 (Auto Fix Data)
-         * =========================================
-         */
-        async function startAutoFix() {
-            const missing = allProjects.filter(p => !p.hasCoords && p.fullAddress);
-            if (missing.length === 0) return;
-
-            if (!confirm(`即將修復 ${missing.length} 筆資料的座標。\n此過程會呼叫 Google API 並寫回 Ragic。\n請勿關閉視窗。`)) return;
-
-            const btn = document.querySelector('#admin-tools button');
-            const progress = document.getElementById('fix-progress');
-            const status = document.getElementById('fix-status');
-            
-            btn.disabled = true;
-            btn.textContent = '修復中...';
-            progress.style.display = 'flex';
-
-            let successCount = 0;
-
-            for (let i = 0; i < missing.length; i++) {
-                const p = missing[i];
-                status.textContent = `${i + 1} / ${missing.length}`;
-
-                try {
-                    // 1. Google Geocoding
-                    const coords = await getCoordinates(p.fullAddress);
-                    console.log(`Geocoded ${p.name}: ${coords}`);
-
-                    // 2. 寫入 Ragic (使用 hidden iframe 表單提交)
-                    postToRagic(p.id, coords);
-                    successCount++;
-
-                } catch (err) {
-                    console.error(`Error processing ${p.name}:`, err);
+                // 建立卡片
+                const card = document.createElement('div');
+                card.className = 'card';
+                const color = COLORS[cat] || COLORS['default'];
+                card.style.borderLeftColor = color;
+                
+                let btnHtml = '';
+                if (needsFix) {
+                    // 單筆修復按鈕
+                    btnHtml = `<button onclick="fixSingleItem('${id}', '${addr}')" class="fix-mini-btn" title="強制修復此筆"><i class="fas fa-magic"></i> 修復</button>`;
                 }
 
-                // 3. 延遲避免 API Rate Limit (每 1.2 秒一筆)
-                await new Promise(r => setTimeout(r, 1200));
-            }
+                card.innerHTML = `
+                    ${btnHtml}
+                    <div class="flex justify-between mt-1">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white" style="background:${color}">${cat}</span>
+                    </div>
+                    <h3 class="font-bold text-gray-800 mt-1 text-sm">${name}</h3>
+                    <p class="text-xs text-gray-500 mt-1 truncate"><i class="fas fa-map-marker-alt"></i> ${addr}</p>
+                    <div class="mt-1 text-[10px] ${hasValidCoords ? 'text-green-600' : 'text-red-500'} font-bold">
+                        ${hasValidCoords ? '<i class="fas fa-check"></i> 已定位' : '<i class="fas fa-times"></i> 缺座標'}
+                    </div>
+                `;
+                
+                if (hasValidCoords) {
+                    const [lat, lng] = coords.split(',').map(Number);
+                    const marker = new google.maps.Marker({
+                        position: {lat, lng}, map: map, title: name,
+                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: color, fillOpacity: 1, strokeWeight: 2, strokeColor: '#fff' }
+                    });
+                    const clickFn = () => { map.panTo({lat, lng}); map.setZoom(16); };
+                    marker.addListener('click', clickFn);
+                    card.onclick = (e) => { if(e.target.tagName !== 'BUTTON') clickFn(); }; 
+                    markers.push(marker);
+                    bounds.extend({lat, lng});
+                }
+                
+                list.appendChild(card);
+            });
 
-            alert(`修復完成！成功處理 ${successCount} 筆。\n請重新整理網頁查看結果。`);
-            location.reload();
+            if (markers.length > 0) map.fitBounds(bounds);
+
+            // Update Batch Tools
+            document.getElementById('tools-panel').classList.remove('hidden');
+            document.getElementById('fix-count').innerText = fixCount;
+            const btnFix = document.getElementById('btn-fix');
+            if (fixCount > 0) {
+                btnFix.disabled = false;
+                btnFix.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btnFix.disabled = true;
+                btnFix.classList.add('opacity-50', 'cursor-not-allowed');
+            }
         }
 
-        // 使用 Promise 包裝 Google Geocoding
-        function getCoordinates(address) {
+        // --- Core: Fix Single Item ---
+        async function fixSingleItem(id, addr) {
+            if (!confirm(`確定要修復此案件嗎？\n地址: ${addr}`)) return;
+            
+            log(`正在修復單筆: ${addr}...`, "warn");
+            
+            try {
+                // 1. Google Geocoding
+                const loc = await geocodeAddress(addr);
+                const coordsVal = `${loc.lat()}, ${loc.lng()}`;
+                log(`-> 取得座標: ${coordsVal}`, "info");
+
+                // 2. Post to Ragic
+                postToRagic(id, coordsVal);
+                
+                // 3. UI Feedback
+                alert("修復指令已發送！\n請等待約 2 秒後，重新載入資料查看結果。");
+
+            } catch (e) {
+                log(`修復失敗: ${e}`, "err");
+                if(e === 'ZERO_RESULTS') alert("Google 找不到此地址，請確認地址是否正確。");
+                else if(e === 'OVER_QUERY_LIMIT') alert("API 額度已滿，請休息一下。");
+                else alert("發生錯誤: " + e);
+            }
+        }
+
+        // --- Core: Batch Fix ---
+        async function startAutoFix() {
+            // 只修復過濾後的資料中，缺座標的項目
+            const targets = allData.filter(d => {
+                const coords = d[FIELDS.COORDS];
+                const hasValidCoords = coords && coords.includes(',') && !isNaN(parseFloat(coords.split(',')[0]));
+                return !hasValidCoords;
+            });
+
+            if (targets.length === 0) return alert("沒有需要修復的資料");
+            if (!confirm(`即將修復 ${targets.length} 筆資料，確定嗎？`)) return;
+
+            const btn = document.getElementById('btn-fix');
+            btn.disabled = true;
+
+            for (let i = 0; i < targets.length; i++) {
+                const item = targets[i];
+                const id = item._ragicId;
+                const addr = item[FIELDS.ADDR];
+
+                log(`[批量 ${i+1}/${targets.length}] 處理: ${addr}`, "warn");
+
+                try {
+                    const loc = await geocodeAddress(addr);
+                    const coordsVal = `${loc.lat()}, ${loc.lng()}`;
+                    postToRagic(id, coordsVal);
+                    log(`-> 成功發送`, "info");
+                } catch (e) {
+                    log(`-> 失敗: ${e}`, "err");
+                }
+                
+                await new Promise(r => setTimeout(r, 1200)); // 避免過快
+            }
+
+            alert("批量作業結束！請重新載入資料。");
+            btn.disabled = false;
+            loadData();
+        }
+
+        // Helper: Geocode Promise
+        function geocodeAddress(addr) {
             return new Promise((resolve, reject) => {
-                geocoder.geocode({ 'address': address }, function(results, status) {
-                    if (status === 'OK') {
-                        const loc = results[0].geometry.location;
-                        resolve(`${loc.lat()},${loc.lng()}`);
-                    } else {
-                        reject(status);
-                    }
+                if (!geocoder) return reject("Geocoding API 未載入");
+                geocoder.geocode({ address: addr }, (res, status) => {
+                    if (status === 'OK') resolve(res[0].geometry.location);
+                    else reject(status);
                 });
             });
         }
 
-        // 使用 Hidden Form POST 寫回 Ragic
-        function postToRagic(recordId, coordsValue) {
+        // Helper: Post Form
+        function postToRagic(id, coordsVal) {
+            const server = document.getElementById('server-select').value;
+            const baseUrl = `https://${server}.ragic.com/${CONFIG.RAGIC_PATH}`;
+            
             const form = document.getElementById('ragic_form');
-            form.innerHTML = ''; // 清空舊 input
-
-            // Ragic API URL for specific record
-            form.action = `${CONFIG.RAGIC_API_URL}/${recordId}`;
-
-            // 建立 hidden input 對應座標欄位 ID
+            form.innerHTML = '';
+            form.action = `${baseUrl}/${id}?api&APIKey=${encodeURIComponent(currentApiKey)}`;
+            
             const input = document.createElement('input');
             input.type = 'hidden';
-            input.name = CONFIG.FIELDS.COORDS; // 1000417
-            input.value = coordsValue;
-            
-            // Ragic 需要 API Key (如果權限非公開) 或直接 POST
-            // 如果你的表單是公開可寫入 (Everyone Admin)，則不需要 Key
-            // 如果需要 Key，請將 Key 加入 URL 參數 ?api&APIKey=...
-            // 但為了安全，這裡假設我們利用瀏覽器 session 或公開權限
-            
+            input.name = FIELDS.COORDS; 
+            input.value = coordsVal;
             form.appendChild(input);
+            
             form.submit();
         }
 
-    </script>
-
-    <!-- Google Maps API Loader -->
-    <script>
+        // Boot
         (function() {
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&callback=initMap&language=zh-TW`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.MAP_KEY}&callback=initMap&language=zh-TW`;
             script.async = true;
             script.defer = true;
             document.body.appendChild(script);
         })();
+
     </script>
 </body>
 </html>
