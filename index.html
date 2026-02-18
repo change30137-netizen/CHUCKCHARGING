@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EV Map v13.0 Filtered</title>
+    <title>EV Map v14.0 Deep Debugger</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -11,7 +11,7 @@
         #app { display: flex; flex: 1; overflow: hidden; }
         
         /* Sidebar */
-        #sidebar { width: 420px; background: #fff; display: flex; flex-direction: column; border-right: 1px solid #cbd5e1; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
+        #sidebar { width: 450px; background: #fff; display: flex; flex-direction: column; border-right: 1px solid #cbd5e1; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
         #sidebar-header { padding: 12px; background: #0f172a; color: white; }
         #project-list { flex: 1; overflow-y: auto; background: #f8fafc; padding: 10px; }
         
@@ -38,6 +38,17 @@
         .btn-red { background: #ef4444; color: white; }
         .btn-red:hover { background: #dc2626; }
         .btn-red:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
+        
+        /* Debug Specific */
+        .btn-debug { 
+            background: #b91c1c; color: white; border: 1px solid #fca5a5;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        }
 
         .api-input {
             width: 100%; padding: 6px 8px; border-radius: 4px; border: 1px solid #475569; 
@@ -48,24 +59,14 @@
         .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
         .config-label { font-size: 10px; color: #94a3b8; }
         
-        .fix-mini-btn {
-            position: absolute; right: 10px; top: 10px;
-            background: #ef4444; color: white; font-size: 11px; padding: 4px 8px; 
-            border-radius: 20px; cursor: pointer; border: none; font-weight: bold;
-            box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
-            z-index: 5;
-        }
-        .fix-mini-btn:hover { background: #dc2626; }
-        .fix-mini-btn i { margin-right: 3px; }
-
         .log-window {
             background: #0f172a; color: #4ade80; padding: 8px; font-family: monospace; font-size: 11px;
-            height: 120px; overflow-y: auto; border-top: 4px solid #f59e0b;
+            height: 200px; overflow-y: auto; border-top: 4px solid #f59e0b;
         }
         .log-entry { margin-bottom: 2px; border-bottom: 1px solid #1e293b; padding-bottom: 2px; word-break: break-all; }
-        
-        .filter-badge {
-            background: #eab308; color: black; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 5px; display: none;
+        .curl-box {
+            background: #334155; color: #e2e8f0; padding: 8px; margin: 4px 0; border-radius: 4px;
+            font-size: 10px; user-select: all; word-break: break-all; border: 1px dashed #64748b;
         }
     </style>
 </head>
@@ -81,9 +82,9 @@
             <div id="sidebar-header">
                 <div class="flex justify-between items-center mb-2">
                     <h1 class="text-lg font-bold flex items-center gap-2">
-                        <i class="fas fa-filter text-yellow-400"></i> 工程實績地圖 v13
+                        <i class="fas fa-bug text-red-400"></i> 工程實績地圖 v14
                     </h1>
-                    <span class="text-[10px] bg-slate-700 px-2 py-1 rounded text-slate-300">精準除錯版</span>
+                    <span class="text-[10px] bg-red-900 px-2 py-1 rounded text-red-200">深度除錯版</span>
                 </div>
                 
                 <!-- Main Config -->
@@ -117,13 +118,19 @@
                     </div>
                 </div>
 
-                <!-- Batch Tools -->
-                <div id="tools-panel" class="hidden mt-2">
-                    <button onclick="startAutoFix()" id="btn-fix" class="action-btn btn-red" disabled>
-                        <i class="fas fa-magic"></i> 批量修復 (<span id="fix-count">0</span>)
+                <!-- Debug Tools -->
+                <div id="tools-panel" class="hidden mt-4 pt-4 border-t border-slate-600">
+                    <div class="text-xs text-slate-300 mb-2 font-bold">除錯目標：</div>
+                    <div class="bg-slate-800 p-2 rounded text-[10px] text-slate-400 mb-2">
+                        <div>名稱: <span class="text-white">區塊證-龜山美光案</span></div>
+                        <div>地址: <span class="text-white">桃園市龜山區復興三路667號</span></div>
+                    </div>
+                    
+                    <button onclick="runDebugMode()" id="btn-debug" class="action-btn btn-debug">
+                        <i class="fas fa-microscope"></i> 執行單筆除錯 (Debug)
                     </button>
                     <div class="text-[10px] text-gray-400 mt-1 text-center">
-                        <i class="fas fa-info-circle"></i> 請在 GitHub Pages 或本機執行以確保寫入功能正常
+                        <i class="fas fa-info-circle"></i> 僅測試一筆，不會消耗大量額度
                     </div>
                 </div>
             </div>
@@ -136,7 +143,10 @@
             </div>
 
             <div id="log-window" class="log-window hidden">
-                <div class="text-yellow-400 border-b border-gray-700 pb-1 mb-1">> 系統日誌</div>
+                <div class="text-yellow-400 border-b border-gray-700 pb-1 mb-1 flex justify-between">
+                    <span>> 系統日誌</span>
+                    <span class="text-[9px] cursor-pointer hover:text-white" onclick="document.getElementById('log-window').innerHTML=''">[清除]</span>
+                </div>
             </div>
         </div>
 
@@ -148,10 +158,11 @@
         // --- Global State ---
         let CONFIG = {
             RAGIC_PATH: "ChuckChargingCC/ragicproject-management/7",
-            MAP_KEY: "AIzaSyDIYt9AZImHlL7xpb-30cyYOuAXsFufufw"
+            MAP_KEY: "AIzaSyDIYt9AZImHlL7xpb-30cyYOuAXsFufufw",
+            TEST_NAME: "區塊證-龜山美光案",
+            TEST_ADDR: "桃園市龜山區復興三路667號"
         };
         
-        // 當前使用的 Field IDs
         let FIELDS = {
             NAME: "1000167", CAT: "1000372", ADDR: "1000190", COORDS: "1000417"
         };
@@ -166,6 +177,17 @@
             const color = type === 'err' ? '#f87171' : type === 'warn' ? '#facc15' : '#4ade80';
             const time = new Date().toLocaleTimeString('zh-TW', {hour12:false});
             win.innerHTML += `<div class="log-entry" style="color:${color}">[${time}] ${msg}</div>`;
+            win.scrollTop = win.scrollHeight;
+        }
+
+        function logCurl(url, data) {
+            const win = document.getElementById('log-window');
+            const curl = `curl -X POST "${url}" \\
+     -d "${data}"`;
+            win.innerHTML += `
+                <div style="color:#cbd5e1; margin-top:4px;">若網頁寫入無效，請複製下方指令至終端機測試權限：</div>
+                <div class="curl-box">${curl}</div>
+            `;
             win.scrollTop = win.scrollHeight;
         }
 
@@ -185,7 +207,6 @@
             if (!key) return alert("請輸入 Ragic API Key");
             currentApiKey = key;
 
-            // 讀取 UI 上的設定
             FIELDS.NAME = document.getElementById('fid-name').value;
             FIELDS.CAT = document.getElementById('fid-cat').value;
             FIELDS.ADDR = document.getElementById('fid-addr').value;
@@ -204,27 +225,27 @@
                 
                 let data = Object.values(res);
                 const originalCount = data.length;
+                log(`讀取: ${originalCount} 筆`, "info");
 
-                // === CTO Filter Logic: 過濾無地址資料 ===
+                // 過濾無地址 (方便除錯)
                 data = data.filter(item => {
                     const addr = item[FIELDS.ADDR];
-                    // 確保地址存在、是字串、且不是空字串
                     return addr && typeof addr === 'string' && addr.trim().length > 0;
                 });
                 
-                const filteredCount = originalCount - data.length;
-                
-                log(`讀取: ${originalCount} 筆`, "info");
-                if (filteredCount > 0) {
-                    log(`已自動隱藏 ${filteredCount} 筆「無地址」資料`, "warn");
-                }
-                log(`實際顯示: ${data.length} 筆`, "info");
-
                 allData = data;
                 
-                // 智能偵測 (如果過濾後還有資料)
+                // 檢查測試資料是否存在
+                const testExist = allData.find(d => d[FIELDS.NAME] === CONFIG.TEST_NAME);
+                if (testExist) {
+                    log(`✅ 找到測試目標：${CONFIG.TEST_NAME}`, "info");
+                } else {
+                    log(`⚠️ 列表中未找到「${CONFIG.TEST_NAME}」，將使用第一筆有地址的資料測試`, "warn");
+                }
+
                 if (data.length > 0) detectFieldIds(data[0]);
 
+                document.getElementById('tools-panel').classList.remove('hidden');
                 renderUI();
             };
 
@@ -236,7 +257,6 @@
 
         // --- Field Detection ---
         function detectFieldIds(record) {
-            // 如果當前設定的地址 ID 讀不到東西，嘗試自動尋找
             const currentAddrVal = record[FIELDS.ADDR];
             if (!currentAddrVal) {
                 log("⚠️ 當前地址 ID 讀取為空，嘗試自動搜尋...", "warn");
@@ -244,7 +264,6 @@
                     const v = String(record[k]);
                     if (v.includes('市') && v.includes('區') && v.length > 5) {
                         log(`💡 發現疑似地址欄位: ${k} (${v.substring(0,8)}...)`, "warn");
-                        // 更新 UI
                         document.getElementById('fid-addr').value = k;
                         FIELDS.ADDR = k;
                         log("已自動更新地址欄位設定", "info");
@@ -258,7 +277,6 @@
             FIELDS.CAT = document.getElementById('fid-cat').value;
             FIELDS.ADDR = document.getElementById('fid-addr').value;
             FIELDS.COORDS = document.getElementById('fid-coords').value;
-            // 重新載入以觸發過濾
             if (currentApiKey) loadData();
         }
 
@@ -269,48 +287,39 @@
             markers.forEach(m => m.setMap(null));
             markers = [];
 
-            let fixCount = 0;
-            const bounds = new google.maps.LatLngBounds();
-
             if (allData.length === 0) {
                  list.innerHTML = '<div class="text-center p-5 text-gray-500">沒有符合條件的資料</div>';
                  return;
             }
 
             allData.forEach(item => {
-                const id = item._ragicId;
                 const name = item[FIELDS.NAME] || '(無名稱)';
                 const addr = item[FIELDS.ADDR];
                 const coords = item[FIELDS.COORDS];
                 const cat = item[FIELDS.CAT] || 'default';
                 
-                // 檢查是否需要修復
                 const hasValidCoords = coords && coords.includes(',') && !isNaN(parseFloat(coords.split(',')[0]));
-                const needsFix = !hasValidCoords; // 因為我們已經過濾掉無地址的，所以剩下的只要沒座標就是待修復
-                
-                if (needsFix) fixCount++;
 
-                // 建立卡片
                 const card = document.createElement('div');
                 card.className = 'card';
                 const color = COLORS[cat] || COLORS['default'];
                 card.style.borderLeftColor = color;
                 
-                let btnHtml = '';
-                if (needsFix) {
-                    // 單筆修復按鈕
-                    btnHtml = `<button onclick="fixSingleItem('${id}', '${addr}')" class="fix-mini-btn" title="強制修復此筆"><i class="fas fa-magic"></i> 修復</button>`;
-                }
+                // Highlight test case
+                const isTest = name === CONFIG.TEST_NAME;
+                const borderClass = isTest ? 'border-2 border-red-500' : '';
 
                 card.innerHTML = `
-                    ${btnHtml}
-                    <div class="flex justify-between mt-1">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white" style="background:${color}">${cat}</span>
-                    </div>
-                    <h3 class="font-bold text-gray-800 mt-1 text-sm">${name}</h3>
-                    <p class="text-xs text-gray-500 mt-1 truncate"><i class="fas fa-map-marker-alt"></i> ${addr}</p>
-                    <div class="mt-1 text-[10px] ${hasValidCoords ? 'text-green-600' : 'text-red-500'} font-bold">
-                        ${hasValidCoords ? '<i class="fas fa-check"></i> 已定位' : '<i class="fas fa-times"></i> 缺座標'}
+                    <div class="${borderClass} p-1 rounded">
+                        <div class="flex justify-between mt-1">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white" style="background:${color}">${cat}</span>
+                            ${isTest ? '<span class="text-red-600 font-bold text-xs">測試目標</span>' : ''}
+                        </div>
+                        <h3 class="font-bold text-gray-800 mt-1 text-sm">${name}</h3>
+                        <p class="text-xs text-gray-500 mt-1 truncate"><i class="fas fa-map-marker-alt"></i> ${addr}</p>
+                        <div class="mt-1 text-[10px] ${hasValidCoords ? 'text-green-600' : 'text-red-500'} font-bold">
+                            ${hasValidCoords ? '<i class="fas fa-check"></i> 已定位' : '<i class="fas fa-times"></i> 缺座標'}
+                        </div>
                     </div>
                 `;
                 
@@ -322,98 +331,75 @@
                     });
                     const clickFn = () => { map.panTo({lat, lng}); map.setZoom(16); };
                     marker.addListener('click', clickFn);
-                    card.onclick = (e) => { if(e.target.tagName !== 'BUTTON') clickFn(); }; 
+                    card.onclick = clickFn;
                     markers.push(marker);
-                    bounds.extend({lat, lng});
                 }
                 
                 list.appendChild(card);
             });
-
-            if (markers.length > 0) map.fitBounds(bounds);
-
-            // Update Batch Tools
-            document.getElementById('tools-panel').classList.remove('hidden');
-            document.getElementById('fix-count').innerText = fixCount;
-            const btnFix = document.getElementById('btn-fix');
-            if (fixCount > 0) {
-                btnFix.disabled = false;
-                btnFix.classList.remove('opacity-50', 'cursor-not-allowed');
-            } else {
-                btnFix.disabled = true;
-                btnFix.classList.add('opacity-50', 'cursor-not-allowed');
-            }
         }
 
-        // --- Core: Fix Single Item ---
-        async function fixSingleItem(id, addr) {
-            if (!confirm(`確定要修復此案件嗎？\n地址: ${addr}`)) return;
-            
-            log(`正在修復單筆: ${addr}...`, "warn");
-            
-            try {
-                // 1. Google Geocoding
-                const loc = await geocodeAddress(addr);
-                const coordsVal = `${loc.lat()}, ${loc.lng()}`;
-                log(`-> 取得座標: ${coordsVal}`, "info");
+        // --- 核心：單筆除錯模式 ---
+        async function runDebugMode() {
+            if (!currentApiKey) return alert("請先載入資料");
+            if (!geocoder) return alert("地圖元件未載入");
 
-                // 2. Post to Ragic
-                postToRagic(id, coordsVal);
+            const btn = document.getElementById('btn-debug');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 除錯中...';
+
+            try {
+                // 1. 尋找目標
+                let target = allData.find(d => d[FIELDS.NAME] === CONFIG.TEST_NAME);
+                let useAddress = CONFIG.TEST_ADDR;
+
+                if (!target) {
+                    log(`⚠️ 找不到「${CONFIG.TEST_NAME}」，嘗試使用列表第一筆做測試`, "warn");
+                    if (allData.length > 0) {
+                        target = allData[0];
+                        useAddress = target[FIELDS.ADDR]; // 使用該筆資料的真實地址
+                        log(`👉 改用 ID: ${target._ragicId} / 地址: ${useAddress}`, "info");
+                    } else {
+                        throw new Error("沒有任何資料可供測試");
+                    }
+                } else {
+                    log(`🎯 鎖定目標 ID: ${target._ragicId}`, "info");
+                    // 強制使用使用者指定的測試地址，或使用資料庫內的地址
+                    useAddress = CONFIG.TEST_ADDR; 
+                    log(`📍 準備 Geocoding: ${useAddress}`, "info");
+                }
+
+                // 2. 執行 Geocoding
+                const loc = await geocodeAddress(useAddress);
+                const coordsVal = `${loc.lat()}, ${loc.lng()}`; // 注意：加了空格
+                log(`✅ Google 查詢成功: ${coordsVal}`, "info");
+
+                // 3. 嘗試寫入 (Form Post)
+                log(`💾 正在嘗試寫入 Ragic...`, "warn");
+                postToRagic(target._ragicId, coordsVal);
+
+                // 4. 提供 CURL 除錯指令
+                const server = document.getElementById('server-select').value;
+                const url = `https://${server}.ragic.com/${CONFIG.RAGIC_PATH}/${target._ragicId}?api&APIKey=${currentApiKey}`;
+                const data = `${FIELDS.COORDS}=${coordsVal}`;
                 
-                // 3. UI Feedback
-                alert("修復指令已發送！\n請等待約 2 秒後，重新載入資料查看結果。");
+                logCurl(url, data);
+
+                alert("測試指令已發送！\n請觀察 Log 視窗。\n如果 Ragic 資料沒變，請複製 Log 中的 curl 指令去終端機執行，檢查是否為權限錯誤。");
 
             } catch (e) {
-                log(`修復失敗: ${e}`, "err");
-                if(e === 'ZERO_RESULTS') alert("Google 找不到此地址，請確認地址是否正確。");
-                else if(e === 'OVER_QUERY_LIMIT') alert("API 額度已滿，請休息一下。");
+                log(`❌ 測試失敗: ${e}`, "err");
+                if (e === 'OVER_QUERY_LIMIT') alert("Google API 額度已滿");
                 else alert("發生錯誤: " + e);
             }
-        }
 
-        // --- Core: Batch Fix ---
-        async function startAutoFix() {
-            // 只修復過濾後的資料中，缺座標的項目
-            const targets = allData.filter(d => {
-                const coords = d[FIELDS.COORDS];
-                const hasValidCoords = coords && coords.includes(',') && !isNaN(parseFloat(coords.split(',')[0]));
-                return !hasValidCoords;
-            });
-
-            if (targets.length === 0) return alert("沒有需要修復的資料");
-            if (!confirm(`即將修復 ${targets.length} 筆資料，確定嗎？`)) return;
-
-            const btn = document.getElementById('btn-fix');
-            btn.disabled = true;
-
-            for (let i = 0; i < targets.length; i++) {
-                const item = targets[i];
-                const id = item._ragicId;
-                const addr = item[FIELDS.ADDR];
-
-                log(`[批量 ${i+1}/${targets.length}] 處理: ${addr}`, "warn");
-
-                try {
-                    const loc = await geocodeAddress(addr);
-                    const coordsVal = `${loc.lat()}, ${loc.lng()}`;
-                    postToRagic(id, coordsVal);
-                    log(`-> 成功發送`, "info");
-                } catch (e) {
-                    log(`-> 失敗: ${e}`, "err");
-                }
-                
-                await new Promise(r => setTimeout(r, 1200)); // 避免過快
-            }
-
-            alert("批量作業結束！請重新載入資料。");
             btn.disabled = false;
-            loadData();
+            btn.innerHTML = '<i class="fas fa-microscope"></i> 執行單筆除錯 (Debug)';
         }
 
         // Helper: Geocode Promise
         function geocodeAddress(addr) {
             return new Promise((resolve, reject) => {
-                if (!geocoder) return reject("Geocoding API 未載入");
                 geocoder.geocode({ address: addr }, (res, status) => {
                     if (status === 'OK') resolve(res[0].geometry.location);
                     else reject(status);
@@ -428,6 +414,7 @@
             
             const form = document.getElementById('ragic_form');
             form.innerHTML = '';
+            // 寫入時只需要 api 與 Key
             form.action = `${baseUrl}/${id}?api&APIKey=${encodeURIComponent(currentApiKey)}`;
             
             const input = document.createElement('input');
