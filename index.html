@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工程實績地圖 | EV Charging Project Map</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column;
+        }
+        /* RWD: Mobile first */
+        #main-container {
+            display: flex;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            flex-direction: column-reverse; /* 手機版列表在下 */
+        }
+        
+        /* Desktop styles */
+        @media (min-width: 768px) {
+            #main-container {
+                flex-direction: row; /* 電腦版列表在左 */
+            }
+            #sidebar {
+                width: 400px;
+                height: 100%;
+                z-index: 20;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+        }
+
+        #sidebar {
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            /* Mobile specific sidebar */
+            height: 40vh; 
+            width: 100%;
+        }
+
+        #map-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 滾動條美化 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* 卡片互動效果 */
+        .project-card {
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+        .project-card:hover {
+            background-color: #f8fafc;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .project-card.active {
+            background-color: #ecfdf5; /* 淺綠色背景 */
+            border-left: 4px solid #10b981; /* 綠色邊條 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Header (Optional) -->
+    <header class="bg-slate-800 text-white p-4 shadow-md flex justify-between items-center z-30">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-charging-station text-green-400 text-2xl"></i>
+            <div>
+                <h1 class="font-bold text-lg tracking-wide">EV Charging Map</h1>
+                <p class="text-xs text-slate-400">工程實績展示系統</p>
+            </div>
+        </div>
+        <div class="text-sm">
+            <span id="project-count" class="bg-green-600 px-3 py-1 rounded-full text-xs font-bold">載入中...</span>
+        </div>
+    </header>
+
+    <div id="main-container">
+        <!-- Sidebar: List & Filter -->
+        <aside id="sidebar">
+            <!-- Filter Section -->
+            <div class="p-4 border-b bg-white z-10">
+                <div class="relative">
+                    <i class="fas fa-filter absolute left-3 top-3 text-gray-400"></i>
+                    <select id="category-filter" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 appearance-none bg-white cursor-pointer text-sm font-medium text-gray-700">
+                        <option value="all">顯示所有案件類型</option>
+                        <!-- options will be injected by JS -->
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-400 pointer-events-none"></i>
+                </div>
+            </div>
+
+            <!-- Project List -->
+            <div id="project-list" class="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2 bg-gray-50">
+                <!-- Template for Loading -->
+                <div class="text-center py-10 text-gray-500">
+                    <i class="fas fa-circle-notch fa-spin text-2xl text-green-500 mb-2"></i>
+                    <p>正在連線至資料庫...</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Map Section -->
+        <main id="map-wrapper">
+            <div id="map"></div>
+            
+            <!-- Floating Controls (Optional) -->
+            <button onclick="resetMap()" class="absolute bottom-6 right-6 bg-white p-3 rounded-full shadow-lg hover:bg-gray-100 z-10 transition text-gray-700" title="回到全覽">
+                <i class="fas fa-compress-arrows-alt"></i>
+            </button>
+        </main>
+    </div>
+
+    <!-- CONFIGURATION & LOGIC -->
+    <script>
+        /**
+         * CTO CONFIGURATION ZONE
+         * 已填入您的 Ragic API URL 與 Google Maps API Key
+         */
+        const CONFIG = {
+            // Ragic 表單 API URL (已移除 ?PAGEID=To8 等參數，保留純淨路徑)
+            RAGIC_API_URL: 'https://ap13.ragic.com/ChuckChargingCC/ragicproject-management/7', 
+            
+            // Google Maps API Key
+            GOOGLE_MAPS_API_KEY: 'AIzaSyDIYt9AZImHlL7xpb-30cyYOuAXsFufufw',
+
+            // 欄位對應表 (Field Mapping)
+            FIELDS: {
+                NAME:       1000167, // 專案名稱
+                ADDRESS:    1000190, // 詳細地址
+                COORDS:     1000417, // 經緯度
+                CATEGORY:   1000372, // 案件類型
+                DATE:       1000176  // 列案日期
+            },
+
+            // 地圖設定
+            MAP_CENTER: { lat: 23.6, lng: 120.9 }, // 台灣中心
+            MAP_ZOOM: 7
+        };
+
+        // 全域變數
+        let map;
+        let markers = [];
+        let allProjects = [];
+        let infoWindow;
+
+        /**
+         * 1. 初始化 Google Maps
+         * 此函式由 API script callback 呼叫
+         */
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: CONFIG.MAP_ZOOM,
+                center: CONFIG.MAP_CENTER,
+                styles: [ // 自定義地圖樣式 (簡潔灰階風格，突出綠色標點)
+                    { "featureType": "poi", "stylers": [{ "visibility": "off" }] },
+                    { "featureType": "transit", "stylers": [{ "visibility": "off" }] }
+                ],
+                mapTypeControl: false,
+                fullscreenControl: false,
+                streetViewControl: false
+            });
+
+            infoWindow = new google.maps.InfoWindow();
+
+            // 地圖載入後，開始抓取資料
+            fetchRagicData();
+        }
+
+        /**
+         * 2. 抓取 Ragic 資料 (使用 JSONP 避免 CORS)
+         */
+        function fetchRagicData() {
+            // 定義全域 Callback
+            window.ragicCallback = function(response) {
+                // Ragic API 有時回傳 Object (Key是ID)，有時 Array，統一轉 Array
+                const rawData = Object.values(response || {});
+                processData(rawData);
+            };
+
+            // 動態插入 Script 標籤
+            const script = document.createElement('script');
+            // 加入 &callback=ragicCallback 參數
+            script.src = `${CONFIG.RAGIC_API_URL}?api&callback=ragicCallback`; 
+            script.onerror = () => {
+                document.getElementById('project-list').innerHTML = 
+                    `<div class="p-4 text-red-500 text-center">無法連線至資料庫。<br>請檢查 API URL 是否正確。</div>`;
+            };
+            document.body.appendChild(script);
+        }
+
+        /**
+         * 3. 資料處理與清洗 (Data Cleaning)
+         */
+        function processData(data) {
+            allProjects = data.map(record => {
+                const latLngStr = record[CONFIG.FIELDS.COORDS];
+                let position = null;
+
+                // 解析座標字串 "25.123, 121.456"
+                if (latLngStr && latLngStr.includes(',')) {
+                    const [lat, lng] = latLngStr.split(',').map(Number);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        // 【隱私保護】座標抖動 (Jitter)
+                        // 讓點偏移約 50-100 公尺，避免精確定位
+                        const jitter = () => (Math.random() - 0.5) * 0.0015; 
+                        position = { 
+                            lat: lat + jitter(), 
+                            lng: lng + jitter() 
+                        };
+                    }
+                }
+
+                return {
+                    id: record._ragicId, // Ragic 內建 ID
+                    name: record[CONFIG.FIELDS.NAME] || '未命名專案',
+                    fullAddress: record[CONFIG.FIELDS.ADDRESS] || '',
+                    displayAddress: getFuzzyAddress(record[CONFIG.FIELDS.ADDRESS] || ''), // 模糊化地址
+                    category: record[CONFIG.FIELDS.CATEGORY] || '其他工程',
+                    date: record[CONFIG.FIELDS.DATE] || '',
+                    position: position // 如果沒有座標，這裡會是 null
+                };
+            }).filter(p => p.position !== null); // 暫時只顯示有座標的資料 (Scheme B)
+
+            // 依日期排序 (新 -> 舊)
+            allProjects.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // 初始化 UI
+            initFilters();
+            renderProjects(allProjects);
+            updateMapMarkers(allProjects);
+        }
+
+        /**
+         * 工具: 地址模糊化 (Privacy)
+         * 只保留 "縣/市" + "區/鄉/鎮"
+         */
+        function getFuzzyAddress(fullAddr) {
+            // Regex 抓取到 區/鄉/鎮/市 為止
+            const match = fullAddr.match(/.*?[縣市].*?[區鄉鎮市]/);
+            if (match) {
+                return match[0] + " ..."; // 例如: 台北市大安區 ...
+            }
+            // 如果比對失敗，且字串夠長，只顯示前 6 個字
+            if (fullAddr.length > 6) return fullAddr.substring(0, 6) + "...";
+            return fullAddr;
+        }
+
+        /**
+         * 4. 渲染左側列表
+         */
+        function renderProjects(projects) {
+            const container = document.getElementById('project-list');
+            const countBadge = document.getElementById('project-count');
+            
+            countBadge.textContent = `${projects.length} 件實績`;
+            container.innerHTML = '';
+
+            if (projects.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-gray-400">沒有符合條件的案件</div>`;
+                return;
+            }
+
+            projects.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'project-card p-4 bg-white rounded-lg cursor-pointer border border-gray-100 shadow-sm mb-2';
+                card.dataset.id = p.id;
+                
+                // 卡片內容
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-100">
+                            ${p.category}
+                        </span>
+                        <span class="text-xs text-gray-400">${p.date}</span>
+                    </div>
+                    <h3 class="font-bold text-gray-800 text-lg mb-1 truncate">${p.name}</h3>
+                    <div class="flex items-center text-gray-500 text-sm">
+                        <i class="fas fa-map-marker-alt w-4 text-center mr-1"></i>
+                        <span class="truncate">${p.displayAddress}</span>
+                    </div>
+                `;
+
+                // 點擊事件: 移動地圖並開啟 InfoWindow
+                card.addEventListener('click', () => {
+                    focusOnProject(p);
+                    // UI Highlight
+                    document.querySelectorAll('.project-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                });
+
+                container.appendChild(card);
+            });
+        }
+
+        /**
+         * 5. 更新地圖標記
+         */
+        function updateMapMarkers(projects) {
+            // 清除舊 Markers
+            markers.forEach(m => m.setMap(null));
+            markers = [];
+
+            const bounds = new google.maps.LatLngBounds();
+
+            projects.forEach(p => {
+                const marker = new google.maps.Marker({
+                    position: p.position,
+                    map: map,
+                    title: p.name,
+                    // 自定義 Icon (可選，這裡用預設或簡單顏色)
+                    // icon: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' 
+                });
+
+                // Marker 點擊事件
+                marker.addListener('click', () => {
+                    focusOnProject(p);
+                    // 同步捲動左側列表
+                    const card = document.querySelector(`.project-card[data-id="${p.id}"]`);
+                    if (card) {
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        document.querySelectorAll('.project-card').forEach(c => c.classList.remove('active'));
+                        card.classList.add('active');
+                    }
+                });
+
+                markers.push(marker);
+                bounds.extend(p.position);
+            });
+
+            // 自動調整地圖視野
+            if (projects.length > 0) {
+                map.fitBounds(bounds);
+                // 如果只有一點，不要 Zoom 太近
+                /*
+                if (projects.length === 1) {
+                    map.setZoom(15);
+                }
+                */
+            }
+        }
+
+        /**
+         * 動作: 聚焦特定專案
+         */
+        function focusOnProject(p) {
+            map.panTo(p.position);
+            map.setZoom(16);
+
+            // InfoWindow 內容
+            const contentString = `
+                <div class="p-2 min-w-[200px]">
+                    <h3 class="font-bold text-lg mb-1">${p.name}</h3>
+                    <p class="text-sm text-green-600 font-bold mb-2">${p.category}</p>
+                    <p class="text-sm text-gray-600 mb-1"><i class="fas fa-map-marker-alt mr-1"></i>${p.displayAddress}</p>
+                    <p class="text-xs text-gray-400">完工: ${p.date}</p>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${p.fullAddress}" target="_blank" class="block mt-3 text-center bg-blue-500 text-white text-xs py-1.5 rounded hover:bg-blue-600 transition">
+                        <i class="fas fa-directions mr-1"></i> 導航前往
+                    </a>
+                </div>
+            `;
+            
+            infoWindow.setContent(contentString);
+            // 找到對應的 marker
+            const targetMarker = markers.find(m => 
+                Math.abs(m.getPosition().lat() - p.position.lat) < 0.000001 &&
+                Math.abs(m.getPosition().lng() - p.position.lng) < 0.000001
+            );
+            
+            if (targetMarker) {
+                infoWindow.open(map, targetMarker);
+            } else {
+                infoWindow.setPosition(p.position);
+                infoWindow.open(map);
+            }
+        }
+
+        /**
+         * 6. 初始化篩選器
+         */
+        function initFilters() {
+            const select = document.getElementById('category-filter');
+            // 抓出所有不重複的類別
+            const categories = [...new Set(allProjects.map(p => p.category))].filter(Boolean).sort();
+            
+            // 保持第一個 option (顯示所有)
+            select.innerHTML = '<option value="all">顯示所有案件類型</option>';
+            
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                select.appendChild(option);
+            });
+
+            // 監聽變更
+            select.addEventListener('change', (e) => {
+                const val = e.target.value;
+                const filtered = val === 'all' 
+                    ? allProjects 
+                    : allProjects.filter(p => p.category === val);
+                
+                renderProjects(filtered);
+                updateMapMarkers(filtered);
+            });
+        }
+
+        function resetMap() {
+            if(allProjects.length > 0) updateMapMarkers(allProjects);
+            document.getElementById('category-filter').value = 'all';
+            renderProjects(allProjects);
+        }
+
+    </script>
+
+    <!-- Google Maps API Loader -->
+    <!-- 注意: 必須將 YOUR_GOOGLE_MAPS_API_KEY_HERE 替換為真實 Key -->
+    <script>
+        (function() {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${CONFIG.GOOGLE_MAPS_API_KEY}&callback=initMap&language=zh-TW`;
+            script.async = true;
+            script.defer = true;
+            document.body.appendChild(script);
+        })();
+    </script>
+</body>
+</html>
