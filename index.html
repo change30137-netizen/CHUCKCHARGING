@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EV Map v23.1 Cloud Fixed Edition</title>
+    <title>EV Map v25.1 Full Auto Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -26,24 +26,6 @@
         }
         .card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
-        .action-btn { 
-            width: 100%; border: none; padding: 8px; border-radius: 4px; 
-            cursor: pointer; font-weight: bold; margin-top: 5px; font-size: 12px;
-            display: flex; align-items: center; justify-content: center; gap: 4px;
-            transition: background 0.2s;
-        }
-        .btn-blue { background: #3b82f6; color: white; }
-        .btn-blue:hover { background: #2563eb; }
-        .btn-green { background: #10b981; color: white; }
-        .btn-green:hover { background: #059669; }
-        .btn-green:disabled { background: #6ee7b7; cursor: not-allowed; }
-
-        .api-input {
-            width: 100%; padding: 4px 8px; border-radius: 4px; border: 1px solid #475569; 
-            background: #334155; color: white; font-size: 11px; margin-bottom: 4px;
-        }
-        .api-input:focus { outline: 2px solid #60a5fa; border-color: transparent; }
-        
         .log-window {
             background: #0f172a; color: #4ade80; padding: 8px; font-family: 'Courier New', monospace; font-size: 10px;
             height: 120px; overflow-y: auto; border-top: 4px solid #f59e0b;
@@ -59,50 +41,22 @@
             <div id="sidebar-header">
                 <div class="flex justify-between items-center mb-2">
                     <h1 class="text-base font-bold flex items-center gap-2">
-                        <i class="fas fa-cloud text-blue-400"></i> v23.1 官網雲端版
+                        <i class="fas fa-satellite text-blue-400"></i> 工程實績地圖
                     </h1>
-                    <span class="text-[9px] bg-blue-900 px-2 py-1 rounded text-blue-200">即時同步</span>
-                </div>
-                
-                <!-- Main Config (已隱藏 API 填寫區，改為全自動) -->
-                <div>
-                    <div class="hidden">
-                        <input type="password" id="api-key" class="api-input" placeholder="貼上 Ragic API Key">
-                        <select id="server-select" class="api-input w-1/3 py-1">
-                            <option value="ap14">ap14</option>
-                            <option value="ap13">ap13</option>
-                        </select>
-                    </div>
-                    <button onclick="window.loadData()" class="action-btn btn-blue mt-0 py-1 relative" id="btn-load">
-                        <i class="fas fa-sync-alt"></i> 手動重新讀取
-                    </button>
+                    <span class="text-[9px] bg-blue-900 px-2 py-1 rounded text-blue-200">全自動同步</span>
                 </div>
 
-                <!-- 隱藏設定區 -->
-                <div class="mt-2 pt-2 border-t border-slate-600">
-                    <div class="flex justify-between items-center cursor-pointer mb-2" onclick="document.getElementById('field-config').classList.toggle('hidden')">
-                        <span class="text-[11px] text-slate-300 font-bold"><i class="fas fa-cog"></i> 欄位設定</span>
-                        <i class="fas fa-chevron-down text-slate-400 text-[10px]"></i>
-                    </div>
-                    <div id="field-config" class="hidden grid grid-cols-2 gap-2 text-[10px] mb-2">
-                        <div><div class="text-slate-400 mb-1">名稱 ID</div><input id="fid-name" class="api-input" value="1000167"></div>
-                        <div><div class="text-slate-400 mb-1">類別 ID</div><input id="fid-cat" class="api-input" value="1000372"></div>
-                        <div><div class="text-slate-400 mb-1">地址 ID</div><input id="fid-addr" class="api-input" value="1000190"></div>
-                        <div><div class="text-slate-400 mb-1">座標 ID</div><input id="fid-coords" class="api-input" value="1000417"></div>
-                    </div>
-                </div>
-
-                <!-- 動態生成按鈕 & 雲端快取狀態 -->
-                <div id="render-panel" class="hidden mt-2">
-                    <button onclick="window.startDynamicMapping()" id="btn-render" class="action-btn btn-green mt-0">
-                        <i class="fas fa-satellite-dish"></i> 2. 解析新地址並上傳
-                    </button>
-                    
-                    <div class="bg-slate-800 p-2 rounded border border-slate-700 flex justify-between items-center mt-2">
+                <!-- 系統狀態儀表板 (取代原本的所有按鈕與輸入框) -->
+                <div class="bg-slate-800 p-2 rounded border border-slate-700 flex flex-col mt-2">
+                    <div class="flex justify-between items-center w-full">
                         <div class="text-[11px] text-slate-300">
                             <i class="fas fa-database text-blue-400"></i> 雲端快取：<span id="cache-count" class="text-yellow-400 font-bold">0</span> 筆
                         </div>
                         <div id="fb-status" class="text-[9px] text-yellow-500 font-bold">連線中...</div>
+                    </div>
+                    <!-- 智能狀態條 -->
+                    <div id="sys-status" class="mt-2 text-[11px] text-center font-bold py-1.5 rounded bg-slate-900 text-slate-400 border border-slate-700">
+                        <i class="fas fa-spinner fa-spin"></i> 系統初始化...
                     </div>
                 </div>
             </div>
@@ -130,37 +84,45 @@
         import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // 🚀 全自動設定區
+        // 🚀 全自動設定區 (固定寫死，無 UI 設定)
         // ==========================================
         const CONFIG = {
+            RAGIC_SERVER: "ap14",
             RAGIC_PATH: "ChuckChargingCC/ragicproject-management/7",
             MAP_KEY: "AIzaSyDIYt9AZImHlL7xpb-30cyYOuAXsFufufw",
             PREFILL_RAGIC_KEY: "aE9KcVErZy9iTTJQWDJCeWZLaFM2RUtQRXd2bGxnS1lxYm9PN0pPc1J2bmRzRnN2blRzTE9JSHNyQmpnM1dPVA==" 
         };
 
-        let FIELDS = { NAME: "1000167", CAT: "1000372", ADDR: "1000190", COORDS: "1000417" };
-        let map, geocoder, allData = [], currentApiKey = "";
+        const FIELDS = { NAME: "1000167", CAT: "1000372", ADDR: "1000190", COORDS: "1000417" };
+        const COLORS = { "專案": "#f97316", "家充": "#3b82f6", "社區": "#10b981", "default": "#64748b" };
+
+        let map, geocoder, allData = [];
         let markers = [];
         let bounds;
         
-        const COLORS = { "專案": "#f97316", "家充": "#3b82f6", "社區": "#10b981", "default": "#64748b" };
-
         let db, auth, currentUser;
         let cloudCache = {}; 
         
+        // --- 狀態控制函式 ---
+        function setSysStatus(msg, icon, colorClass) {
+            const el = document.getElementById('sys-status');
+            if (el) {
+                el.className = `mt-2 text-[11px] text-center font-bold py-1.5 rounded bg-slate-900 border border-slate-700 ${colorClass}`;
+                el.innerHTML = `<i class="${icon}"></i> ${msg}`;
+            }
+        }
+
         // --- Firebase 初始化 (支援環境智能切換) ---
         const initFirebase = async () => {
             try {
                 let firebaseConfig;
                 let isPreviewEnv = false;
                 
-                // 1. 判斷是否在 Gemini 預覽環境 (Canvas)
                 if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config !== '{}') {
                     firebaseConfig = JSON.parse(__firebase_config);
                     isPreviewEnv = true;
                     log(`ℹ️ 偵測到預覽環境，使用系統內建資料庫`, 'info');
                 } else {
-                    // 2. 如果放在您的官網，則使用您的專屬資料庫
                     firebaseConfig = {
                         apiKey: "AIzaSyCGqiHwPv2ero7SVmqN5gkyfqDh5o2AEjo",
                         authDomain: "ev-map-1470c.firebaseapp.com",
@@ -177,7 +139,6 @@
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // 根據環境選擇安全的登入方式
                 if (isPreviewEnv && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
@@ -192,7 +153,7 @@
                         statusEl.className = "text-[9px] text-green-400 font-bold";
                         setupFirestoreListener(isPreviewEnv);
                         
-                        // 全自動觸發：連線成功後自動讀取資料
+                        // 🚀 全自動觸發：連線成功後自動讀取 Ragic 資料
                         setTimeout(() => { window.loadData(); }, 1500);
                     } else {
                         statusEl.innerText = "未登入";
@@ -203,11 +164,13 @@
                 console.error("Firebase Init Error:", e);
                 const statusEl = document.getElementById('fb-status');
                 
-                // 針對「未開啟匿名登入」的精準報錯提示
+                // 💡 更精確的錯誤指引提示
                 if (e.code === 'auth/configuration-not-found' || e.code === 'auth/admin-restricted-operation') {
-                    log(`🔥 Firebase 權限錯誤：您尚未開啟匿名登入！`, 'err');
-                    log(`💡 解決方法：請前往 Firebase 後台 -> Authentication (驗證) -> Sign-in method，將「匿名 (Anonymous)」設為啟用。`, 'err');
+                    log(`🔥 Firebase 權限錯誤：您尚未開啟匿名登入，或網域未被授權！`, 'err');
+                    log(`👉 步驟 1: 去 Firebase 後台 -> Authentication -> Sign-in method -> 開啟「匿名(Anonymous)」。`, 'warn');
+                    log(`👉 步驟 2: 去 Firebase 後台 -> Authentication -> Settings -> 授權網域 -> 新增 change30137-netizen.github.io。`, 'warn');
                     if (statusEl) { statusEl.innerText = "權限遭拒"; statusEl.className = "text-[9px] text-red-400 font-bold"; }
+                    alert("Firebase 驗證設定尚未完成！\n\n請前往 Firebase 後台：\n1. 開啟「匿名登入 (Anonymous)」\n2. 將 change30137-netizen.github.io 加入「授權網域」\n\n設定完畢後重新整理網頁即可。");
                 } else {
                     log(`🔥 Firebase 初始化失敗: ${e.message}`, 'err');
                     if (statusEl) { statusEl.innerText = "連線失敗"; statusEl.className = "text-[9px] text-red-400 font-bold"; }
@@ -223,7 +186,6 @@
         const setupFirestoreListener = (isPreviewEnv) => {
             if (!currentUser) return;
             
-            // 確保路徑變數正確
             const currentAppId = typeof __app_id !== 'undefined' && isPreviewEnv ? __app_id : 'ev-map-production';
             const cacheRef = collection(db, 'artifacts', currentAppId, 'public', 'data', 'coords_cache');
             
@@ -243,12 +205,9 @@
                 log(`🔥 雲端快取讀取錯誤: ${error.message}`, 'err');
             });
             
-            // 將 appID 存下來供寫入時使用
             window.currentAppId = currentAppId;
         };
 
-        function safeShow(id) { try { const el = document.getElementById(id); if (el) el.classList.remove('hidden'); } catch(e) {} }
-        
         window.clearLog = function() {
             const win = document.getElementById('log-window');
             if (win) win.innerHTML = `<div class="text-yellow-400 border-b border-gray-700 pb-1 mb-1 flex justify-between sticky top-0 bg-[#0f172a] z-10"><span class="font-bold">> 系統日誌</span><span class="text-[9px] cursor-pointer hover:text-white bg-slate-700 px-2 rounded" onclick="window.clearLog()">清除</span></div>`;
@@ -291,28 +250,19 @@
             };
         }
 
-        // --- 1. 讀取資料與隱私保護處理 ---
+        // --- 1. 讀取資料與隱私保護處理 (全自動) ---
         window.loadData = function() {
-            const btn = document.getElementById('btn-load');
-            if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 讀取中...';
+            setSysStatus('正在同步 Ragic 資料...', 'fas fa-sync-alt fa-spin', 'text-blue-400');
 
             const key = CONFIG.PREFILL_RAGIC_KEY;
-            currentApiKey = key;
-
-            FIELDS.NAME = document.getElementById('fid-name').value;
-            FIELDS.CAT = document.getElementById('fid-cat').value;
-            FIELDS.ADDR = document.getElementById('fid-addr').value;
-            FIELDS.COORDS = document.getElementById('fid-coords').value;
-
-            const server = "ap14"; // 鎖定 ap14
-            const url = `https://${server}.ragic.com/${CONFIG.RAGIC_PATH}?api&naming=EID&APIKey=${encodeURIComponent(key)}&callback=ragicCallback`;
+            const url = `https://${CONFIG.RAGIC_SERVER}.ragic.com/${CONFIG.RAGIC_PATH}?api&naming=EID&APIKey=${encodeURIComponent(key)}&callback=ragicCallback`;
 
             log(`📡 正在連線讀取 Ragic 資料...`, "info");
             
             window.ragicCallback = function(res) {
                 if (!res || res.status === 'ERROR') {
                     log(`❌ API 讀取錯誤: ${res?.msg || '未知'}`, "err");
-                    if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i> 手動重新讀取';
+                    setSysStatus('讀取失敗，請聯絡管理員', 'fas fa-exclamation-triangle', 'text-red-400');
                     return;
                 }
                 
@@ -346,8 +296,6 @@
                 allData = data;
                 log(`✅ 讀取 ${allData.length} 筆資料 (隱藏 ${privacyCount} 筆家充)`, "success");
 
-                if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i> 手動重新讀取';
-                safeShow('render-panel');
                 renderListOnly(); 
 
                 // 🚀 自動檢查：若有尚未解析的新地址，自動觸發「解析並上傳」
@@ -365,7 +313,10 @@
                 
                 if (needsSync) {
                     log(`🔄 發現未解析的新地址，自動啟動解析與同步...`, "warn");
+                    setSysStatus('發現新地址，啟動智能解析...', 'fas fa-cogs fa-spin', 'text-yellow-400');
                     setTimeout(() => { window.startDynamicMapping(); }, 1500);
+                } else {
+                    setSysStatus('資料已是最新狀態', 'fas fa-check-circle', 'text-green-400');
                 }
             };
 
@@ -373,7 +324,7 @@
             script.src = url;
             script.onerror = () => {
                 log("❌ 連線中斷 (Network Error)", "err");
-                if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i> 手動重新讀取';
+                setSysStatus('網路連線異常', 'fas fa-wifi', 'text-red-400');
             };
             document.body.appendChild(script);
         };
@@ -440,15 +391,17 @@
             if (markers.length > 0) map.fitBounds(bounds);
         }
 
-        // --- 2. 啟動動態解析並上傳 Firebase ---
+        // --- 2. 啟動動態解析並上傳 Firebase (全自動) ---
         window.startDynamicMapping = async function() {
-            if (!geocoder) return alert("地圖元件未載入");
-            if (!currentUser) return alert("Firebase 未登入，無法寫入雲端。請確認 Firebase 設定。");
+            if (!geocoder) return log("地圖元件未載入，稍後重試", "err");
             
-            const btn = document.getElementById('btn-render');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在解析並同步至雲端...';
-
+            // 💡 新增：若未成功登入 Firebase，直接彈窗並停止解析
+            if (!currentUser) {
+                alert("Firebase 權限異常，無法同步座標至雲端！\n\n請確認您已在 Firebase 後台開啟「匿名登入 (Anonymous)」，並將您的網域加入「授權網域」。");
+                return log("Firebase 未登入，無法同步", "err");
+            }
+            
+            setSysStatus('正在解析座標並同步至雲端...', 'fas fa-satellite-dish fa-spin', 'text-yellow-400');
             log(`🚀 啟動智能解析 (自動跳過雲端已有項目)...`, "warn");
 
             let processCount = 0;
@@ -525,8 +478,7 @@
             }
 
             log(`🎉 結束！新解析並上傳 ${processCount} 筆，失敗 ${failCount} 筆，從雲端跳過 ${skipCount} 筆。`, "success");
-            btn.innerHTML = '<i class="fas fa-satellite-dish"></i> 2. 解析新地址並上傳';
-            btn.disabled = false;
+            setSysStatus('✅ 資料已是最新狀態', 'fas fa-check-circle', 'text-green-400');
             
             if (markers.length > 0) map.fitBounds(bounds);
         }
