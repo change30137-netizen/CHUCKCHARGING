@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EV Map v14.0 Deep Debugger</title>
+    <title>EV Map v15.0 Sniper Debugger</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -24,7 +24,6 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.05); border-left: 4px solid #cbd5e1;
             transition: all 0.2s; position: relative;
         }
-        .card:hover { transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         
         .action-btn { 
             width: 100%; border: none; padding: 8px; border-radius: 4px; 
@@ -35,14 +34,10 @@
         .btn-blue { background: #3b82f6; color: white; }
         .btn-blue:hover { background: #2563eb; }
         
-        .btn-red { background: #ef4444; color: white; }
-        .btn-red:hover { background: #dc2626; }
-        .btn-red:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.7; }
-        
         /* Debug Specific */
         .btn-debug { 
             background: #b91c1c; color: white; border: 1px solid #fca5a5;
-            animation: pulse 2s infinite;
+            animation: pulse 2s infinite; padding: 12px; font-size: 14px;
         }
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
@@ -55,24 +50,21 @@
             background: #334155; color: white; font-size: 12px; margin-bottom: 4px;
         }
         .api-input:focus { outline: 2px solid #60a5fa; border-color: transparent; }
-
-        .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
-        .config-label { font-size: 10px; color: #94a3b8; }
         
         .log-window {
-            background: #0f172a; color: #4ade80; padding: 8px; font-family: monospace; font-size: 11px;
-            height: 200px; overflow-y: auto; border-top: 4px solid #f59e0b;
+            background: #0f172a; color: #4ade80; padding: 10px; font-family: 'Courier New', monospace; font-size: 12px;
+            height: 250px; overflow-y: auto; border-top: 4px solid #f59e0b;
         }
-        .log-entry { margin-bottom: 2px; border-bottom: 1px solid #1e293b; padding-bottom: 2px; word-break: break-all; }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #1e293b; padding-bottom: 4px; word-break: break-all; }
         .curl-box {
             background: #334155; color: #e2e8f0; padding: 8px; margin: 4px 0; border-radius: 4px;
-            font-size: 10px; user-select: all; word-break: break-all; border: 1px dashed #64748b;
+            font-size: 11px; user-select: all; word-break: break-all; border: 1px dashed #64748b; font-family: monospace;
         }
     </style>
 </head>
 <body>
 
-    <!-- 核心技術：隱藏 iframe 用於跨域寫入 -->
+    <!-- 核心技術：隱藏 iframe 備用寫入方案 -->
     <iframe name="hidden_iframe" style="display:none;"></iframe>
     <form id="ragic_form" target="hidden_iframe" method="POST" style="display:none;"></form>
 
@@ -82,9 +74,9 @@
             <div id="sidebar-header">
                 <div class="flex justify-between items-center mb-2">
                     <h1 class="text-lg font-bold flex items-center gap-2">
-                        <i class="fas fa-bug text-red-400"></i> 工程實績地圖 v14
+                        <i class="fas fa-crosshairs text-red-400"></i> v15 單筆狙擊版
                     </h1>
-                    <span class="text-[10px] bg-red-900 px-2 py-1 rounded text-red-200">深度除錯版</span>
+                    <span class="text-[10px] bg-red-900 px-2 py-1 rounded text-red-200">安全除錯模式</span>
                 </div>
                 
                 <!-- Main Config -->
@@ -101,52 +93,40 @@
                     </div>
                 </div>
 
-                <!-- Field Settings (可折疊) -->
-                <div class="mt-2 pt-2 border-t border-slate-600">
-                    <div class="flex justify-between items-center cursor-pointer" onclick="document.getElementById('field-config').classList.toggle('hidden')">
-                        <span class="text-xs text-slate-300 font-bold"><i class="fas fa-cog"></i> 欄位 ID 設定</span>
-                        <i class="fas fa-chevron-down text-slate-400 text-xs"></i>
-                    </div>
-                    <div id="field-config" class="hidden">
-                        <div class="config-grid">
-                            <div><div class="config-label">名稱 ID</div><input id="fid-name" class="api-input" value="1000167"></div>
-                            <div><div class="config-label">類別 ID</div><input id="fid-cat" class="api-input" value="1000372"></div>
-                            <div><div class="config-label">地址 ID</div><input id="fid-addr" class="api-input" value="1000190"></div>
-                            <div><div class="config-label">座標 ID</div><input id="fid-coords" class="api-input" value="1000417"></div>
+                <!-- 狙擊目標面板 -->
+                <div id="sniper-panel" class="hidden mt-4 pt-4 border-t border-slate-600">
+                    <div class="bg-slate-800 p-3 rounded border border-slate-600">
+                        <div class="text-xs text-yellow-400 font-bold mb-2">
+                            <i class="fas fa-bullseye"></i> 狙擊目標鎖定：
                         </div>
-                        <button onclick="applyFields()" class="w-full bg-slate-600 hover:bg-slate-500 text-white text-[10px] py-1 rounded mt-1">更新設定並重繪</button>
-                    </div>
-                </div>
-
-                <!-- Debug Tools -->
-                <div id="tools-panel" class="hidden mt-4 pt-4 border-t border-slate-600">
-                    <div class="text-xs text-slate-300 mb-2 font-bold">除錯目標：</div>
-                    <div class="bg-slate-800 p-2 rounded text-[10px] text-slate-400 mb-2">
-                        <div>名稱: <span class="text-white">區塊證-龜山美光案</span></div>
-                        <div>地址: <span class="text-white">桃園市龜山區復興三路667號</span></div>
+                        <div class="text-[11px] text-slate-300 space-y-1">
+                            <div>名稱：<span class="text-white font-bold">區塊證-龜山美光案</span></div>
+                            <div>地址：<span class="text-white">桃園市龜山區復興三路667號</span></div>
+                            <div>寫入欄位：<span class="text-red-400 font-bold">1000417</span> (強制指定)</div>
+                        </div>
                     </div>
                     
-                    <button onclick="runDebugMode()" id="btn-debug" class="action-btn btn-debug">
-                        <i class="fas fa-microscope"></i> 執行單筆除錯 (Debug)
+                    <button onclick="runSniperTest()" id="btn-sniper" class="action-btn btn-debug mt-3">
+                        <i class="fas fa-fire"></i> 執行單筆寫入測試 (Fire)
                     </button>
-                    <div class="text-[10px] text-gray-400 mt-1 text-center">
-                        <i class="fas fa-info-circle"></i> 僅測試一筆，不會消耗大量額度
+                    <div class="text-[10px] text-gray-400 mt-2 text-center">
+                        <i class="fas fa-shield-alt"></i> 僅消耗 1 次 Geocoding 額度
                     </div>
                 </div>
             </div>
 
-            <div id="project-list">
-                <div class="h-full flex flex-col items-center justify-center text-gray-400 text-sm">
-                    <i class="fas fa-arrow-up mb-2 text-2xl animate-bounce"></i>
-                    <span>請輸入 Key 並載入資料</span>
-                </div>
+            <!-- List Placeholder -->
+            <div id="project-list" class="h-20 flex flex-col items-center justify-center text-gray-400 text-sm bg-slate-50 border-b">
+                <span>請輸入 Key 載入資料...</span>
             </div>
 
-            <div id="log-window" class="log-window hidden">
-                <div class="text-yellow-400 border-b border-gray-700 pb-1 mb-1 flex justify-between">
-                    <span>> 系統日誌</span>
-                    <span class="text-[9px] cursor-pointer hover:text-white" onclick="document.getElementById('log-window').innerHTML=''">[清除]</span>
+            <!-- Log Window (Enlarged for debugging) -->
+            <div id="log-window" class="log-window hidden flex-1">
+                <div class="text-yellow-400 border-b border-gray-700 pb-1 mb-2 flex justify-between sticky top-0 bg-[#0f172a] z-10">
+                    <span class="font-bold">> 系統日誌 (System Log)</span>
+                    <span class="text-[10px] cursor-pointer hover:text-white bg-slate-700 px-2 rounded" onclick="document.getElementById('log-window').innerHTML=''">清除</span>
                 </div>
+                <!-- Logs will appear here -->
             </div>
         </div>
 
@@ -155,39 +135,26 @@
     </div>
 
     <script>
-        // --- Global State ---
-        let CONFIG = {
+        // --- 寫死的安全設定 (Hardcoded for Safety) ---
+        const CONFIG = {
             RAGIC_PATH: "ChuckChargingCC/ragicproject-management/7",
             MAP_KEY: "AIzaSyDIYt9AZImHlL7xpb-30cyYOuAXsFufufw",
-            TEST_NAME: "區塊證-龜山美光案",
-            TEST_ADDR: "桃園市龜山區復興三路667號"
+            TARGET_NAME: "區塊證-龜山美光案",
+            TARGET_ADDR: "桃園市龜山區復興三路667號",
+            TARGET_FIELD: "1000417" // 強制寫入的欄位 ID
         };
         
-        let FIELDS = {
-            NAME: "1000167", CAT: "1000372", ADDR: "1000190", COORDS: "1000417"
-        };
+        // 讀取用欄位 (用於在清單中找到目標)
+        let READ_FIELDS = { NAME: "1000167", ADDR: "1000190" };
 
-        let map, geocoder, allData = [], markers = [], currentApiKey = "";
-        
-        const COLORS = { "default": "#64748b", "家用": "#3b82f6", "商用": "#10b981", "公共": "#f59e0b", "快充": "#ef4444" };
+        let map, geocoder, allData = [], currentApiKey = "";
 
         function log(msg, type='info') {
             const win = document.getElementById('log-window');
             win.classList.remove('hidden');
-            const color = type === 'err' ? '#f87171' : type === 'warn' ? '#facc15' : '#4ade80';
+            const color = type === 'err' ? '#f87171' : type === 'warn' ? '#facc15' : type === 'success' ? '#4ade80' : '#60a5fa';
             const time = new Date().toLocaleTimeString('zh-TW', {hour12:false});
             win.innerHTML += `<div class="log-entry" style="color:${color}">[${time}] ${msg}</div>`;
-            win.scrollTop = win.scrollHeight;
-        }
-
-        function logCurl(url, data) {
-            const win = document.getElementById('log-window');
-            const curl = `curl -X POST "${url}" \\
-     -d "${data}"`;
-            win.innerHTML += `
-                <div style="color:#cbd5e1; margin-top:4px;">若網頁寫入無效，請複製下方指令至終端機測試權限：</div>
-                <div class="curl-box">${curl}</div>
-            `;
             win.scrollTop = win.scrollHeight;
         }
 
@@ -197,8 +164,8 @@
                     center: { lat: 23.6, lng: 120.9 }, zoom: 8, mapTypeControl: false
                 });
                 geocoder = new google.maps.Geocoder();
-                log("Google Maps API 載入成功");
-            } catch (e) { log("地圖載入失敗: " + e.message, "err"); }
+                log("🗺️ Google Maps API 載入完成", "info");
+            } catch (e) { log("❌ 地圖載入失敗: " + e.message, "err"); }
         }
 
         // --- Data Loading ---
@@ -207,223 +174,143 @@
             if (!key) return alert("請輸入 Ragic API Key");
             currentApiKey = key;
 
-            FIELDS.NAME = document.getElementById('fid-name').value;
-            FIELDS.CAT = document.getElementById('fid-cat').value;
-            FIELDS.ADDR = document.getElementById('fid-addr').value;
-            FIELDS.COORDS = document.getElementById('fid-coords').value;
-
             const server = document.getElementById('server-select').value;
             const url = `https://${server}.ragic.com/${CONFIG.RAGIC_PATH}?api&naming=EID&APIKey=${encodeURIComponent(key)}&callback=ragicCallback`;
 
-            log(`連線中 (${server})...`, "info");
+            log(`📡 正在連線讀取資料 (${server})...`, "info");
             
             window.ragicCallback = function(res) {
                 if (!res || res.status === 'ERROR') {
-                    log(`API 錯誤: ${res?.msg || '未知'}`, "err");
-                    return alert("讀取失敗！請檢查 Key 或切換伺服器。");
+                    log(`❌ API 讀取錯誤: ${res?.msg || '未知'}`, "err");
+                    return;
                 }
                 
-                let data = Object.values(res);
-                const originalCount = data.length;
-                log(`讀取: ${originalCount} 筆`, "info");
+                allData = Object.values(res);
+                log(`✅ 成功讀取 ${allData.length} 筆資料`, "success");
 
-                // 過濾無地址 (方便除錯)
-                data = data.filter(item => {
-                    const addr = item[FIELDS.ADDR];
-                    return addr && typeof addr === 'string' && addr.trim().length > 0;
-                });
-                
-                allData = data;
-                
                 // 檢查測試資料是否存在
-                const testExist = allData.find(d => d[FIELDS.NAME] === CONFIG.TEST_NAME);
+                const testExist = allData.find(d => d[READ_FIELDS.NAME] === CONFIG.TARGET_NAME);
                 if (testExist) {
-                    log(`✅ 找到測試目標：${CONFIG.TEST_NAME}`, "info");
+                    log(`🎯 尋獲目標案件，內部 Record ID: ${testExist._ragicId}`, "success");
+                    document.getElementById('tools-panel').classList.remove('hidden');
+                    document.getElementById('project-list').innerHTML = `
+                        <div class="h-full flex flex-col items-center justify-center text-green-600 font-bold bg-green-50">
+                            <i class="fas fa-check-circle mb-1 text-xl"></i> 目標鎖定完成，請按下方按鈕測試
+                        </div>
+                    `;
                 } else {
-                    log(`⚠️ 列表中未找到「${CONFIG.TEST_NAME}」，將使用第一筆有地址的資料測試`, "warn");
+                    log(`⚠️ 嚴重錯誤：在 Ragic 找不到名為「${CONFIG.TARGET_NAME}」的案件。請確認名稱是否完全一致。`, "err");
+                    document.getElementById('project-list').innerHTML = `
+                        <div class="h-full flex flex-col items-center justify-center text-red-500 font-bold bg-red-50 p-2 text-center">
+                            <i class="fas fa-times-circle mb-1 text-xl"></i> 找不到測試資料<br>請在 Ragic 確認名稱為「${CONFIG.TARGET_NAME}」
+                        </div>
+                    `;
                 }
-
-                if (data.length > 0) detectFieldIds(data[0]);
-
-                document.getElementById('tools-panel').classList.remove('hidden');
-                renderUI();
             };
 
             const script = document.createElement('script');
             script.src = url;
-            script.onerror = () => log("連線中斷 (Network Error)", "err");
+            script.onerror = () => log("❌ 連線中斷 (Network Error)", "err");
             document.body.appendChild(script);
         }
 
-        // --- Field Detection ---
-        function detectFieldIds(record) {
-            const currentAddrVal = record[FIELDS.ADDR];
-            if (!currentAddrVal) {
-                log("⚠️ 當前地址 ID 讀取為空，嘗試自動搜尋...", "warn");
-                Object.keys(record).forEach(k => {
-                    const v = String(record[k]);
-                    if (v.includes('市') && v.includes('區') && v.length > 5) {
-                        log(`💡 發現疑似地址欄位: ${k} (${v.substring(0,8)}...)`, "warn");
-                        document.getElementById('fid-addr').value = k;
-                        FIELDS.ADDR = k;
-                        log("已自動更新地址欄位設定", "info");
-                    }
-                });
-            }
-        }
-
-        function applyFields() {
-            FIELDS.NAME = document.getElementById('fid-name').value;
-            FIELDS.CAT = document.getElementById('fid-cat').value;
-            FIELDS.ADDR = document.getElementById('fid-addr').value;
-            FIELDS.COORDS = document.getElementById('fid-coords').value;
-            if (currentApiKey) loadData();
-        }
-
-        // --- Render ---
-        function renderUI() {
-            const list = document.getElementById('project-list');
-            list.innerHTML = '';
-            markers.forEach(m => m.setMap(null));
-            markers = [];
-
-            if (allData.length === 0) {
-                 list.innerHTML = '<div class="text-center p-5 text-gray-500">沒有符合條件的資料</div>';
-                 return;
-            }
-
-            allData.forEach(item => {
-                const name = item[FIELDS.NAME] || '(無名稱)';
-                const addr = item[FIELDS.ADDR];
-                const coords = item[FIELDS.COORDS];
-                const cat = item[FIELDS.CAT] || 'default';
-                
-                const hasValidCoords = coords && coords.includes(',') && !isNaN(parseFloat(coords.split(',')[0]));
-
-                const card = document.createElement('div');
-                card.className = 'card';
-                const color = COLORS[cat] || COLORS['default'];
-                card.style.borderLeftColor = color;
-                
-                // Highlight test case
-                const isTest = name === CONFIG.TEST_NAME;
-                const borderClass = isTest ? 'border-2 border-red-500' : '';
-
-                card.innerHTML = `
-                    <div class="${borderClass} p-1 rounded">
-                        <div class="flex justify-between mt-1">
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white" style="background:${color}">${cat}</span>
-                            ${isTest ? '<span class="text-red-600 font-bold text-xs">測試目標</span>' : ''}
-                        </div>
-                        <h3 class="font-bold text-gray-800 mt-1 text-sm">${name}</h3>
-                        <p class="text-xs text-gray-500 mt-1 truncate"><i class="fas fa-map-marker-alt"></i> ${addr}</p>
-                        <div class="mt-1 text-[10px] ${hasValidCoords ? 'text-green-600' : 'text-red-500'} font-bold">
-                            ${hasValidCoords ? '<i class="fas fa-check"></i> 已定位' : '<i class="fas fa-times"></i> 缺座標'}
-                        </div>
-                    </div>
-                `;
-                
-                if (hasValidCoords) {
-                    const [lat, lng] = coords.split(',').map(Number);
-                    const marker = new google.maps.Marker({
-                        position: {lat, lng}, map: map, title: name,
-                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 7, fillColor: color, fillOpacity: 1, strokeWeight: 2, strokeColor: '#fff' }
-                    });
-                    const clickFn = () => { map.panTo({lat, lng}); map.setZoom(16); };
-                    marker.addListener('click', clickFn);
-                    card.onclick = clickFn;
-                    markers.push(marker);
-                }
-                
-                list.appendChild(card);
-            });
-        }
-
-        // --- 核心：單筆除錯模式 ---
-        async function runDebugMode() {
-            if (!currentApiKey) return alert("請先載入資料");
+        // --- 核心：單筆狙擊測試 (Sniper Test) ---
+        async function runSniperTest() {
             if (!geocoder) return alert("地圖元件未載入");
 
-            const btn = document.getElementById('btn-debug');
+            const btn = document.getElementById('btn-sniper');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 除錯中...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 測試執行中...';
 
             try {
-                // 1. 尋找目標
-                let target = allData.find(d => d[FIELDS.NAME] === CONFIG.TEST_NAME);
-                let useAddress = CONFIG.TEST_ADDR;
+                // 1. 抓取 Record ID
+                const target = allData.find(d => d[READ_FIELDS.NAME] === CONFIG.TARGET_NAME);
+                if (!target) throw new Error("找不到測試目標");
+                const recordId = target._ragicId;
 
-                if (!target) {
-                    log(`⚠️ 找不到「${CONFIG.TEST_NAME}」，嘗試使用列表第一筆做測試`, "warn");
-                    if (allData.length > 0) {
-                        target = allData[0];
-                        useAddress = target[FIELDS.ADDR]; // 使用該筆資料的真實地址
-                        log(`👉 改用 ID: ${target._ragicId} / 地址: ${useAddress}`, "info");
-                    } else {
-                        throw new Error("沒有任何資料可供測試");
-                    }
-                } else {
-                    log(`🎯 鎖定目標 ID: ${target._ragicId}`, "info");
-                    // 強制使用使用者指定的測試地址，或使用資料庫內的地址
-                    useAddress = CONFIG.TEST_ADDR; 
-                    log(`📍 準備 Geocoding: ${useAddress}`, "info");
-                }
+                log(`==================================`, "warn");
+                log(`🚀 開始執行單筆測試`, "warn");
 
                 // 2. 執行 Geocoding
-                const loc = await geocodeAddress(useAddress);
-                const coordsVal = `${loc.lat()}, ${loc.lng()}`; // 注意：加了空格
-                log(`✅ Google 查詢成功: ${coordsVal}`, "info");
-
-                // 3. 嘗試寫入 (Form Post)
-                log(`💾 正在嘗試寫入 Ragic...`, "warn");
-                postToRagic(target._ragicId, coordsVal);
-
-                // 4. 提供 CURL 除錯指令
-                const server = document.getElementById('server-select').value;
-                const url = `https://${server}.ragic.com/${CONFIG.RAGIC_PATH}/${target._ragicId}?api&APIKey=${currentApiKey}`;
-                const data = `${FIELDS.COORDS}=${coordsVal}`;
+                log(`1️⃣ 向 Google 查詢地址: ${CONFIG.TARGET_ADDR}`, "info");
+                const loc = await new Promise((resolve, reject) => {
+                    geocoder.geocode({ address: CONFIG.TARGET_ADDR }, (res, status) => {
+                        if (status === 'OK') resolve(res[0].geometry.location);
+                        else reject(status);
+                    });
+                });
                 
-                logCurl(url, data);
+                const coordsVal = `${loc.lat()}, ${loc.lng()}`;
+                log(`✅ Google 查詢成功: ${coordsVal}`, "success");
 
-                alert("測試指令已發送！\n請觀察 Log 視窗。\n如果 Ragic 資料沒變，請複製 Log 中的 curl 指令去終端機執行，檢查是否為權限錯誤。");
+                // 3. 準備 Ragic 寫入資訊
+                const server = document.getElementById('server-select').value;
+                const postUrl = `https://${server}.ragic.com/${CONFIG.RAGIC_PATH}/${recordId}?api&APIKey=${encodeURIComponent(currentApiKey)}`;
+                
+                log(`2️⃣ 準備寫入 Ragic 欄位 [${CONFIG.TARGET_FIELD}]...`, "info");
+
+                // --- 測試 A: Fetch API 直接寫入 (能捕捉真實錯誤訊息) ---
+                log(`👉 [測試 A] 執行 Fetch API 寫入...`, "warn");
+                try {
+                    const params = new URLSearchParams();
+                    params.append(CONFIG.TARGET_FIELD, coordsVal);
+
+                    const response = await fetch(postUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: params.toString()
+                    });
+                    
+                    const resultJson = await response.json();
+                    
+                    if (resultJson.status === 'SUCCESS') {
+                        log(`✅ [測試 A 成功] Ragic 回傳成功！座標已寫入。`, "success");
+                    } else {
+                        log(`❌ [測試 A 失敗] Ragic 拒絕寫入。`, "err");
+                        log(`⚠️ Ragic 報錯訊息: ${resultJson.msg}`, "err");
+                        if (resultJson.msg && resultJson.msg.includes('access right protected')) {
+                            log(`🚨 診斷結果: 您的 API Key 只有「唯讀」權限，沒有這張表單的「修改」權限！`, "err");
+                            log(`💡 解法: 請至 Ragic 表單設計模式 -> 表單權限 -> 確認您的群組具有修改權限。`, "info");
+                        }
+                    }
+                } catch (fetchErr) {
+                    log(`❌ [測試 A 失敗] 瀏覽器攔截 (CORS 跨域阻擋)`, "err");
+                    log(`因為發生 CORS，我們改用 [測試 B] Iframe 進行盲寫...`, "warn");
+                    
+                    // --- 測試 B: Iframe 隱藏表單寫入 (繞過 CORS，但看不到報錯) ---
+                    const form = document.getElementById('ragic_form');
+                    form.innerHTML = '';
+                    form.action = postUrl;
+                    
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = CONFIG.TARGET_FIELD; 
+                    input.value = coordsVal;
+                    form.appendChild(input);
+                    form.submit();
+                    
+                    log(`✅ [測試 B 送出] Iframe 表單已送出。`, "success");
+                    log(`💡 由於是盲寫，請直接去 Ragic 網頁查看「${CONFIG.TARGET_NAME}」的座標欄位 (${CONFIG.TARGET_FIELD}) 是否有出現數字。`, "info");
+                }
+
+                // --- 測試 C: 產出 CURL 指令 (終極防線) ---
+                log(`3️⃣ 產生 cURL 終端機指令 (供手動測試)：`, "info");
+                const curlCmd = `curl -X POST "https://${server}.ragic.com/${CONFIG.RAGIC_PATH}/${recordId}?api&APIKey=${currentApiKey}" \\\n-d "${CONFIG.TARGET_FIELD}=${coordsVal}"`;
+                
+                const win = document.getElementById('log-window');
+                win.innerHTML += `<div class="curl-box">${curlCmd}</div>`;
+                win.scrollTop = win.scrollHeight;
+
+                log(`==================================`, "warn");
 
             } catch (e) {
-                log(`❌ 測試失敗: ${e}`, "err");
-                if (e === 'OVER_QUERY_LIMIT') alert("Google API 額度已滿");
-                else alert("發生錯誤: " + e);
+                log(`❌ 發生異常錯誤: ${e}`, "err");
+                if (e === 'ZERO_RESULTS') alert("Google 找不到此地址。");
+                else if (e === 'OVER_QUERY_LIMIT') alert("Google API 額度已滿。");
             }
 
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-microscope"></i> 執行單筆除錯 (Debug)';
-        }
-
-        // Helper: Geocode Promise
-        function geocodeAddress(addr) {
-            return new Promise((resolve, reject) => {
-                geocoder.geocode({ address: addr }, (res, status) => {
-                    if (status === 'OK') resolve(res[0].geometry.location);
-                    else reject(status);
-                });
-            });
-        }
-
-        // Helper: Post Form
-        function postToRagic(id, coordsVal) {
-            const server = document.getElementById('server-select').value;
-            const baseUrl = `https://${server}.ragic.com/${CONFIG.RAGIC_PATH}`;
-            
-            const form = document.getElementById('ragic_form');
-            form.innerHTML = '';
-            // 寫入時只需要 api 與 Key
-            form.action = `${baseUrl}/${id}?api&APIKey=${encodeURIComponent(currentApiKey)}`;
-            
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = FIELDS.COORDS; 
-            input.value = coordsVal;
-            form.appendChild(input);
-            
-            form.submit();
+            btn.innerHTML = '<i class="fas fa-fire"></i> 執行單筆寫入測試 (Fire)';
         }
 
         // Boot
