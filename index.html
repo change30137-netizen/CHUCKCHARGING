@@ -192,7 +192,8 @@
                 const testExist = allData.find(d => d[READ_FIELDS.NAME] === CONFIG.TARGET_NAME);
                 if (testExist) {
                     log(`🎯 尋獲目標案件，內部 Record ID: ${testExist._ragicId}`, "success");
-                    document.getElementById('tools-panel').classList.remove('hidden');
+                    // 修正：指向正確的面板 ID 'sniper-panel'
+                    document.getElementById('sniper-panel').classList.remove('hidden');
                     document.getElementById('project-list').innerHTML = `
                         <div class="h-full flex flex-col items-center justify-center text-green-600 font-bold bg-green-50">
                             <i class="fas fa-check-circle mb-1 text-xl"></i> 目標鎖定完成，請按下方按鈕測試
