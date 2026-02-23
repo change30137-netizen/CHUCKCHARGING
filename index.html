@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EV Map v25.1 Full Auto Edition</title>
+    <title>EV Map v25.2 Clean UI Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -43,19 +43,20 @@
                     <h1 class="text-base font-bold flex items-center gap-2">
                         <i class="fas fa-satellite text-blue-400"></i> 工程實績地圖
                     </h1>
-                    <span class="text-[9px] bg-blue-900 px-2 py-1 rounded text-blue-200">全自動同步</span>
+                    <span class="text-[9px] bg-blue-900 px-2 py-1 rounded text-blue-200">即時更新</span>
                 </div>
 
-                <!-- 系統狀態儀表板 (取代原本的所有按鈕與輸入框) -->
+                <!-- 系統狀態儀表板 (已隱藏技術字眼，僅保留智能狀態條) -->
                 <div class="bg-slate-800 p-2 rounded border border-slate-700 flex flex-col mt-2">
-                    <div class="flex justify-between items-center w-full">
+                    <!-- 隱藏雲端快取與連線狀態 -->
+                    <div class="hidden justify-between items-center w-full">
                         <div class="text-[11px] text-slate-300">
                             <i class="fas fa-database text-blue-400"></i> 雲端快取：<span id="cache-count" class="text-yellow-400 font-bold">0</span> 筆
                         </div>
                         <div id="fb-status" class="text-[9px] text-yellow-500 font-bold">連線中...</div>
                     </div>
-                    <!-- 智能狀態條 -->
-                    <div id="sys-status" class="mt-2 text-[11px] text-center font-bold py-1.5 rounded bg-slate-900 text-slate-400 border border-slate-700">
+                    <!-- 智能狀態條 (保留這個給訪客看進度) -->
+                    <div id="sys-status" class="text-[11px] text-center font-bold py-1.5 rounded bg-slate-900 text-slate-400 border border-slate-700">
                         <i class="fas fa-spinner fa-spin"></i> 系統初始化...
                     </div>
                 </div>
@@ -67,7 +68,8 @@
                 </div>
             </div>
 
-            <div id="log-window" class="log-window">
+            <!-- 隱藏系統日誌 (加入 hidden 類別) -->
+            <div id="log-window" class="log-window hidden">
                 <div class="text-yellow-400 border-b border-gray-700 pb-1 mb-1 flex justify-between sticky top-0 bg-[#0f172a] z-10">
                     <span class="font-bold">> 系統日誌</span>
                     <span class="text-[9px] cursor-pointer hover:text-white bg-slate-700 px-2 rounded" onclick="window.clearLog()">清除</span>
@@ -107,7 +109,7 @@
         function setSysStatus(msg, icon, colorClass) {
             const el = document.getElementById('sys-status');
             if (el) {
-                el.className = `mt-2 text-[11px] text-center font-bold py-1.5 rounded bg-slate-900 border border-slate-700 ${colorClass}`;
+                el.className = `text-[11px] text-center font-bold py-1.5 rounded bg-slate-900 border border-slate-700 ${colorClass}`;
                 el.innerHTML = `<i class="${icon}"></i> ${msg}`;
             }
         }
@@ -170,7 +172,7 @@
                     log(`👉 步驟 1: 去 Firebase 後台 -> Authentication -> Sign-in method -> 開啟「匿名(Anonymous)」。`, 'warn');
                     log(`👉 步驟 2: 去 Firebase 後台 -> Authentication -> Settings -> 授權網域 -> 新增 change30137-netizen.github.io。`, 'warn');
                     if (statusEl) { statusEl.innerText = "權限遭拒"; statusEl.className = "text-[9px] text-red-400 font-bold"; }
-                    alert("Firebase 驗證設定尚未完成！\n\n請前往 Firebase 後台：\n1. 開啟「匿名登入 (Anonymous)」\n2. 將 change30137-netizen.github.io 加入「授權網域」\n\n設定完畢後重新整理網頁即可。");
+                    // alert("Firebase 驗證設定尚未完成！\n\n請前往 Firebase 後台：\n1. 開啟「匿名登入 (Anonymous)」\n2. 將 change30137-netizen.github.io 加入「授權網域」\n\n設定完畢後重新整理網頁即可。");
                 } else {
                     log(`🔥 Firebase 初始化失敗: ${e.message}`, 'err');
                     if (statusEl) { statusEl.innerText = "連線失敗"; statusEl.className = "text-[9px] text-red-400 font-bold"; }
@@ -359,22 +361,13 @@
                 card.style.borderLeftWidth = '4px';
                 card.style.borderLeftColor = color;
                 
-                let statusHtml = '';
-                if (hasOriginalCoords) {
-                    statusHtml = `<div class="mt-1 text-[10px] text-green-600 font-bold"><i class="fas fa-check"></i> 原有座標</div>`;
-                } else if (hasCache) {
-                    statusHtml = `<div class="mt-1 text-[10px] text-blue-500 font-bold"><i class="fas fa-cloud"></i> 命中雲端快取</div>`;
-                } else {
-                    statusHtml = `<div id="status-${id}" class="mt-1 text-[10px] text-slate-400 font-bold"><i class="fas fa-hourglass-half"></i> 待解析 (未快取)</div>`;
-                }
-
+                // 為了乾淨版面，移除列表項目中關於快取的工程提示字眼
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-1">
                         <span class="text-[9px] font-bold px-1.5 py-0.5 rounded text-white shadow-sm" style="background:${color}">${cat}</span>
                     </div>
                     <h3 class="font-bold text-gray-800 text-[13px] leading-tight">${name}</h3>
-                    <p class="text-[11px] text-gray-500 mt-1 truncate"><i class="fas fa-shield-alt text-green-500 mr-1" title="隱私保護"></i>${addr}</p>
-                    ${statusHtml}
+                    <p class="text-[11px] text-gray-500 mt-1 truncate"><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>${addr}</p>
                 `;
                 
                 list.appendChild(card);
@@ -395,13 +388,11 @@
         window.startDynamicMapping = async function() {
             if (!geocoder) return log("地圖元件未載入，稍後重試", "err");
             
-            // 💡 新增：若未成功登入 Firebase，直接彈窗並停止解析
             if (!currentUser) {
-                alert("Firebase 權限異常，無法同步座標至雲端！\n\n請確認您已在 Firebase 後台開啟「匿名登入 (Anonymous)」，並將您的網域加入「授權網域」。");
                 return log("Firebase 未登入，無法同步", "err");
             }
             
-            setSysStatus('正在解析座標並同步至雲端...', 'fas fa-satellite-dish fa-spin', 'text-yellow-400');
+            setSysStatus('正在解析座標...', 'fas fa-satellite-dish fa-spin', 'text-yellow-400');
             log(`🚀 啟動智能解析 (自動跳過雲端已有項目)...`, "warn");
 
             let processCount = 0;
@@ -422,9 +413,6 @@
                 const hasCache = !!cloudCache[docId];
                 
                 if (!hasOriginalCoords && !hasCache) {
-                    const statusEl = document.getElementById(`status-${id}`);
-                    if (statusEl) statusEl.innerHTML = `<span class="text-yellow-500"><i class="fas fa-spinner fa-spin"></i> 請求 Google API...</span>`;
-
                     let success = false;
                     let retries = 0;
 
@@ -453,7 +441,6 @@
                             });
 
                             addMarkerToMap(id, name, lat, lng, color, cat);
-                            if (statusEl) statusEl.innerHTML = `<span class="text-blue-500 font-bold"><i class="fas fa-cloud-upload-alt"></i> 已上傳雲端</span>`;
                             
                             success = true;
                             processCount++;
@@ -464,7 +451,6 @@
                                 await new Promise(r => setTimeout(r, 2000));
                             } else {
                                 log(`❌ 失敗 (${addr}): 無法定位`, "err");
-                                if (statusEl) statusEl.innerHTML = `<span class="text-red-500 font-bold"><i class="fas fa-exclamation-triangle"></i> 解析失敗</span>`;
                                 failCount++;
                                 break;
                             }
