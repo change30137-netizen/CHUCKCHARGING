@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EV Map v23.0 Official Cloud Edition</title>
+    <title>EV Map v23.1 Cloud Fixed Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         body { margin:0; padding:0; height: 100vh; display: flex; flex-direction: column; font-family: 'Microsoft JhengHei', sans-serif; background: #f1f5f9; }
         #app { display: flex; flex: 1; overflow: hidden; }
         
-        /* 💡 UI 優化：左側欄位大幅縮小至 300px，最大化地圖空間 */
+        /* UI 優化：左側欄位縮小至 300px，最大化地圖空間 */
         #sidebar { width: 300px; background: #fff; display: flex; flex-direction: column; border-right: 1px solid #cbd5e1; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
         #sidebar-header { padding: 12px; background: #0f172a; color: white; }
         #project-list { flex: 1; overflow-y: auto; background: #f8fafc; padding: 8px; }
@@ -59,12 +59,12 @@
             <div id="sidebar-header">
                 <div class="flex justify-between items-center mb-2">
                     <h1 class="text-base font-bold flex items-center gap-2">
-                        <i class="fas fa-cloud text-blue-400"></i> v24 官網全自動版
+                        <i class="fas fa-cloud text-blue-400"></i> v23.1 官網雲端版
                     </h1>
                     <span class="text-[9px] bg-blue-900 px-2 py-1 rounded text-blue-200">即時同步</span>
                 </div>
                 
-                <!-- Main Config (已隱藏 API 填寫區) -->
+                <!-- Main Config (已隱藏 API 填寫區，改為全自動) -->
                 <div>
                     <div class="hidden">
                         <input type="password" id="api-key" class="api-input" placeholder="貼上 Ragic API Key">
@@ -109,7 +109,7 @@
 
             <div id="project-list">
                 <div class="h-full flex flex-col items-center justify-center text-gray-400 text-sm text-center px-4">
-                    <span>載入中...<br><span class="text-[10px] mt-2 block text-gray-500">若網頁未自動載入，請確認是否有設定 API Key。</span></span>
+                    <span>載入中...<br><span class="text-[10px] mt-2 block text-gray-500">系統正在自動為您抓取最新資料</span></span>
                 </div>
             </div>
 
@@ -123,14 +123,14 @@
         <div id="map"></div>
     </div>
 
+    <!-- Firebase v11 & 核心邏輯 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // 🚀 官網自動載入設定區
-        // 您可以在此寫死 Ragic Key，讓官網訪客進來直接看到資料
+        // 🚀 全自動設定區
         // ==========================================
         const CONFIG = {
             RAGIC_PATH: "ChuckChargingCC/ragicproject-management/7",
@@ -145,20 +145,40 @@
         
         const COLORS = { "專案": "#f97316", "家充": "#3b82f6", "社區": "#10b981", "default": "#64748b" };
 
-        // Firebase 變數
         let db, auth, currentUser;
         let cloudCache = {}; 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-        // --- Firebase 初始化 ---
+        
+        // --- Firebase 初始化 (支援環境智能切換) ---
         const initFirebase = async () => {
             try {
-                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                let firebaseConfig;
+                let isPreviewEnv = false;
+                
+                // 1. 判斷是否在 Gemini 預覽環境 (Canvas)
+                if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config !== '{}') {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                    isPreviewEnv = true;
+                    log(`ℹ️ 偵測到預覽環境，使用系統內建資料庫`, 'info');
+                } else {
+                    // 2. 如果放在您的官網，則使用您的專屬資料庫
+                    firebaseConfig = {
+                        apiKey: "AIzaSyCGqiHwPv2ero7SVmqN5gkyfqDh5o2AEjo",
+                        authDomain: "ev-map-1470c.firebaseapp.com",
+                        projectId: "ev-map-1470c",
+                        storageBucket: "ev-map-1470c.firebasestorage.app",
+                        messagingSenderId: "314662873363",
+                        appId: "1:314662873363:web:d2124b85c423ab2bf7d2e6",
+                        measurementId: "G-3PJP8NJGEB"
+                    };
+                    log(`ℹ️ 偵測到正式環境，連線至 ev-map-1470c`, 'info');
+                }
+                
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                // 根據環境選擇安全的登入方式
+                if (isPreviewEnv && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
@@ -170,8 +190,9 @@
                     if (user) {
                         statusEl.innerText = "已連線";
                         statusEl.className = "text-[9px] text-green-400 font-bold";
-                        setupFirestoreListener();
-                        // 🚀 自動觸發：Firebase 連線完成後，自動讀取 Ragic 資料
+                        setupFirestoreListener(isPreviewEnv);
+                        
+                        // 全自動觸發：連線成功後自動讀取資料
                         setTimeout(() => { window.loadData(); }, 1500);
                     } else {
                         statusEl.innerText = "未登入";
@@ -180,14 +201,31 @@
                 });
             } catch (e) {
                 console.error("Firebase Init Error:", e);
-                log(`🔥 Firebase 初始化失敗: ${e.message}`, 'err');
+                const statusEl = document.getElementById('fb-status');
+                
+                // 針對「未開啟匿名登入」的精準報錯提示
+                if (e.code === 'auth/configuration-not-found' || e.code === 'auth/admin-restricted-operation') {
+                    log(`🔥 Firebase 權限錯誤：您尚未開啟匿名登入！`, 'err');
+                    log(`💡 解決方法：請前往 Firebase 後台 -> Authentication (驗證) -> Sign-in method，將「匿名 (Anonymous)」設為啟用。`, 'err');
+                    if (statusEl) { statusEl.innerText = "權限遭拒"; statusEl.className = "text-[9px] text-red-400 font-bold"; }
+                } else {
+                    log(`🔥 Firebase 初始化失敗: ${e.message}`, 'err');
+                    if (statusEl) { statusEl.innerText = "連線失敗"; statusEl.className = "text-[9px] text-red-400 font-bold"; }
+                }
+                
+                // ⚠️ 防呆機制：即使 Firebase 異常，仍然強制載入 Ragic 地圖
+                log(`🔄 啟動防呆機制，強制載入地圖資料...`, 'warn');
+                setTimeout(() => { window.loadData(); }, 1000);
             }
         };
 
         // --- 監聽 Firestore 快取變更 ---
-        const setupFirestoreListener = () => {
+        const setupFirestoreListener = (isPreviewEnv) => {
             if (!currentUser) return;
-            const cacheRef = collection(db, 'artifacts', appId, 'public', 'data', 'coords_cache');
+            
+            // 確保路徑變數正確
+            const currentAppId = typeof __app_id !== 'undefined' && isPreviewEnv ? __app_id : 'ev-map-production';
+            const cacheRef = collection(db, 'artifacts', currentAppId, 'public', 'data', 'coords_cache');
             
             onSnapshot(cacheRef, (snapshot) => {
                 cloudCache = {}; 
@@ -204,6 +242,9 @@
             }, (error) => {
                 log(`🔥 雲端快取讀取錯誤: ${error.message}`, 'err');
             });
+            
+            // 將 appID 存下來供寫入時使用
+            window.currentAppId = currentAppId;
         };
 
         function safeShow(id) { try { const el = document.getElementById(id); if (el) el.classList.remove('hidden'); } catch(e) {} }
@@ -255,7 +296,6 @@
             const btn = document.getElementById('btn-load');
             if (btn) btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 讀取中...';
 
-            // 直接讀取我們寫死的 API Key，不用抓畫面欄位了
             const key = CONFIG.PREFILL_RAGIC_KEY;
             currentApiKey = key;
 
@@ -264,7 +304,7 @@
             FIELDS.ADDR = document.getElementById('fid-addr').value;
             FIELDS.COORDS = document.getElementById('fid-coords').value;
 
-            const server = "ap14"; // 寫死 Ragic 伺服器
+            const server = "ap14"; // 鎖定 ap14
             const url = `https://${server}.ragic.com/${CONFIG.RAGIC_PATH}?api&naming=EID&APIKey=${encodeURIComponent(key)}&callback=ragicCallback`;
 
             log(`📡 正在連線讀取 Ragic 資料...`, "info");
@@ -272,24 +312,22 @@
             window.ragicCallback = function(res) {
                 if (!res || res.status === 'ERROR') {
                     log(`❌ API 讀取錯誤: ${res?.msg || '未知'}`, "err");
+                    if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i> 手動重新讀取';
                     return;
                 }
                 
                 let data = Object.values(res);
                 let privacyCount = 0;
 
-                // 核心：過濾空地址，並執行隱私模糊化
                 data = data.filter(item => {
                     const addr = item[FIELDS.ADDR];
                     return addr && typeof addr === 'string' && addr.trim().length > 0;
                 }).map(item => {
                     const cat = item[FIELDS.CAT] || '';
                     if (cat === '家充') {
-                        // 名字隱私：第一字 + 宅
                         const name = item[FIELDS.NAME] || '';
                         if (name.length > 0) item[FIELDS.NAME] = name.charAt(0) + '宅';
                         
-                        // 地址隱私：截斷到路名/街名
                         const addr = item[FIELDS.ADDR] || '';
                         if (addr) {
                             const match = addr.match(/(.*?(?:路|街|大道)(?:[一二三四五六七八九十\d]+段)?)/);
@@ -308,12 +346,10 @@
                 allData = data;
                 log(`✅ 讀取 ${allData.length} 筆資料 (隱藏 ${privacyCount} 筆家充)`, "success");
 
-                const btn = document.getElementById('btn-load');
                 if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i> 手動重新讀取';
-
                 safeShow('render-panel');
                 renderListOnly(); 
-                
+
                 // 🚀 自動檢查：若有尚未解析的新地址，自動觸發「解析並上傳」
                 let needsSync = false;
                 for (let i = 0; i < allData.length; i++) {
@@ -335,7 +371,10 @@
 
             const script = document.createElement('script');
             script.src = url;
-            script.onerror = () => log("❌ 連線中斷 (Network Error)", "err");
+            script.onerror = () => {
+                log("❌ 連線中斷 (Network Error)", "err");
+                if (btn) btn.innerHTML = '<i class="fas fa-sync-alt"></i> 手動重新讀取';
+            };
             document.body.appendChild(script);
         };
 
@@ -359,7 +398,6 @@
                 
                 const hasOriginalCoords = coordsRaw && coordsRaw.includes(',') && !isNaN(parseFloat(coordsRaw.split(',')[0]));
                 
-                // 【Firebase 快取檢查】以案名為 ID
                 const docId = name || id; 
                 const cacheData = cloudCache[docId];
                 const hasCache = !!cacheData;
@@ -390,7 +428,6 @@
                 
                 list.appendChild(card);
 
-                // 若 Ragic 或 Firebase 雲端有座標，直接上地圖
                 if (hasOriginalCoords) {
                     const [lat, lng] = coordsRaw.split(',').map(Number);
                     addMarkerToMap(id, name, lat, lng, color, cat);
@@ -406,7 +443,7 @@
         // --- 2. 啟動動態解析並上傳 Firebase ---
         window.startDynamicMapping = async function() {
             if (!geocoder) return alert("地圖元件未載入");
-            if (!currentUser) return alert("Firebase 未登入，無法寫入雲端。");
+            if (!currentUser) return alert("Firebase 未登入，無法寫入雲端。請確認 Firebase 設定。");
             
             const btn = document.getElementById('btn-render');
             btn.disabled = true;
@@ -422,7 +459,7 @@
                 const item = allData[i];
                 const id = item._ragicId;
                 const name = item[FIELDS.NAME] || '未命名';
-                const addr = item[FIELDS.ADDR]; // 已去識別化
+                const addr = item[FIELDS.ADDR];
                 const coordsRaw = item[FIELDS.COORDS];
                 const cat = item[FIELDS.CAT] || '未分類';
                 const color = COLORS[cat] || COLORS['default'];
@@ -438,7 +475,6 @@
                     let success = false;
                     let retries = 0;
 
-                    // 遇到 OVER_QUERY_LIMIT 時重試 3 次
                     while (!success && retries < 3) {
                         try {
                             log(`🔍 查詢 [${i+1}/${allData.length}]: ${addr}`, "info");
@@ -455,7 +491,8 @@
                             const coordsStr = `${lat},${lng}`;
 
                             // ✅ 寫入 Firebase Firestore
-                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'coords_cache', docId);
+                            const targetAppId = window.currentAppId || 'ev-map-production';
+                            const docRef = doc(db, 'artifacts', targetAppId, 'public', 'data', 'coords_cache', docId);
                             await setDoc(docRef, {
                                 coords: coordsStr,
                                 address: addr,
@@ -488,7 +525,7 @@
             }
 
             log(`🎉 結束！新解析並上傳 ${processCount} 筆，失敗 ${failCount} 筆，從雲端跳過 ${skipCount} 筆。`, "success");
-            btn.innerHTML = '<i class="fas fa-check-circle"></i> 解析並同步完成';
+            btn.innerHTML = '<i class="fas fa-satellite-dish"></i> 2. 解析新地址並上傳';
             btn.disabled = false;
             
             if (markers.length > 0) map.fitBounds(bounds);
@@ -496,7 +533,6 @@
 
         // 共用函式：加圖釘到地圖 (Z-Index 置頂優化)
         function addMarkerToMap(id, name, lat, lng, color, cat) {
-            
             let markerZIndex = 1;
             if (cat === '專案' || cat === '社區') {
                 markerZIndex = 1000;
@@ -519,9 +555,6 @@
 
         // --- 頁面啟動程序 ---
         window.addEventListener('DOMContentLoaded', () => {
-            if (CONFIG.PREFILL_RAGIC_KEY) {
-                document.getElementById('api-key').value = CONFIG.PREFILL_RAGIC_KEY;
-            }
             initFirebase(); 
             
             const script = document.createElement('script');
