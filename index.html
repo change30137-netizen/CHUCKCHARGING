@@ -222,9 +222,16 @@
                 
                 let data = Object.values(res);
 
-                // 過濾空地址，並執行隱私模糊化
+                // 過濾空地址與特定案件，並執行隱私模糊化
                 data = data.filter(item => {
                     const addr = item[FIELDS.ADDR];
+                    const name = item[FIELDS.NAME] || '';
+                    
+                    // 過濾掉名稱包含「酷澎倉庫」的案件
+                    if (name.includes('酷澎倉庫')) {
+                        return false;
+                    }
+                    
                     return addr && typeof addr === 'string' && addr.trim().length > 0;
                 }).map(item => {
                     const cat = item[FIELDS.CAT] || '';
