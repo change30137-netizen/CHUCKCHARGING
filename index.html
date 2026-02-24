@@ -3,80 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EV Map v25.2 Clean UI Edition</title>
+    <title>EV Map v26.0 Fullscreen Immersive Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { margin:0; padding:0; height: 100vh; display: flex; flex-direction: column; font-family: 'Microsoft JhengHei', sans-serif; background: #f1f5f9; }
-        #app { display: flex; flex: 1; overflow: hidden; }
+        body { margin:0; padding:0; height: 100vh; overflow: hidden; font-family: 'Microsoft JhengHei', sans-serif; background: #e2e8f0; }
+        #app { width: 100vw; height: 100vh; position: relative; }
         
-        /* UI 優化：左側欄位縮小至 300px，最大化地圖空間 */
-        #sidebar { width: 300px; background: #fff; display: flex; flex-direction: column; border-right: 1px solid #cbd5e1; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.05); }
-        #sidebar-header { padding: 12px; background: #0f172a; color: white; }
-        #project-list { flex: 1; overflow-y: auto; background: #f8fafc; padding: 8px; }
+        /* Map Container */
+        #map { width: 100%; height: 100%; }
+
+        /* Google Maps InfoWindow 樣式微調 (隱藏預設滾動條) */
+        .gm-style-iw-d { overflow: hidden !important; }
         
-        /* Map */
-        #map { flex: 1; background: #e2e8f0; position: relative; }
-        
-        /* Components */
-        .card { 
-            background: white; padding: 8px; margin-bottom: 6px; border-radius: 6px; 
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05); border-left: 4px solid #cbd5e1;
-            transition: all 0.2s; position: relative;
-        }
-        .card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        
-        .log-window {
-            background: #0f172a; color: #4ade80; padding: 8px; font-family: 'Courier New', monospace; font-size: 10px;
-            height: 120px; overflow-y: auto; border-top: 4px solid #f59e0b;
-        }
-        .log-entry { margin-bottom: 2px; border-bottom: 1px solid #1e293b; padding-bottom: 2px; word-break: break-all; }
+        /* 狀態列淡出動畫 */
+        .fade-out { opacity: 0; visibility: hidden; transition: opacity 1s ease-out, visibility 1s ease-out; }
     </style>
 </head>
 <body>
 
     <div id="app">
-        <!-- Sidebar -->
-        <div id="sidebar">
-            <div id="sidebar-header">
-                <div class="flex justify-between items-center mb-2">
-                    <h1 class="text-base font-bold flex items-center gap-2">
-                        <i class="fas fa-satellite text-blue-400"></i> 工程實績地圖
-                    </h1>
-                    <span class="text-[9px] bg-blue-900 px-2 py-1 rounded text-blue-200">即時更新</span>
-                </div>
+        <!-- Google Map 將渲染於此 -->
+        <div id="map"></div>
 
-                <!-- 系統狀態儀表板 (已隱藏技術字眼，僅保留智能狀態條) -->
-                <div class="bg-slate-800 p-2 rounded border border-slate-700 flex flex-col mt-2">
-                    <!-- 隱藏雲端快取與連線狀態 -->
-                    <div class="hidden justify-between items-center w-full">
-                        <div class="text-[11px] text-slate-300">
-                            <i class="fas fa-database text-blue-400"></i> 雲端快取：<span id="cache-count" class="text-yellow-400 font-bold">0</span> 筆
-                        </div>
-                        <div id="fb-status" class="text-[9px] text-yellow-500 font-bold">連線中...</div>
-                    </div>
-                    <!-- 智能狀態條 (保留這個給訪客看進度) -->
-                    <div id="sys-status" class="text-[11px] text-center font-bold py-1.5 rounded bg-slate-900 text-slate-400 border border-slate-700">
-                        <i class="fas fa-spinner fa-spin"></i> 系統初始化...
-                    </div>
-                </div>
+        <!-- 懸浮圖例說明 (左上角) -->
+        <div class="absolute top-5 left-5 bg-white/90 backdrop-blur-sm p-4 rounded-lg shadow-lg z-10 border border-slate-200">
+            <div class="text-sm font-bold text-slate-800 mb-3 border-b border-slate-200 pb-1 flex items-center gap-2">
+                <i class="fas fa-map-marked-alt text-blue-500"></i> 工程實績圖例
             </div>
-
-            <div id="project-list">
-                <div class="h-full flex flex-col items-center justify-center text-gray-400 text-sm text-center px-4">
-                    <span>載入中...<br><span class="text-[10px] mt-2 block text-gray-500">系統正在自動為您抓取最新資料</span></span>
+            <div class="flex flex-col gap-2.5 text-sm font-bold text-slate-600">
+                <div class="flex items-center gap-3">
+                    <span class="w-4 h-4 rounded-full shadow-sm" style="background:#f97316"></span> 專案工程
                 </div>
-            </div>
-
-            <!-- 隱藏系統日誌 (加入 hidden 類別) -->
-            <div id="log-window" class="log-window hidden">
-                <div class="text-yellow-400 border-b border-gray-700 pb-1 mb-1 flex justify-between sticky top-0 bg-[#0f172a] z-10">
-                    <span class="font-bold">> 系統日誌</span>
-                    <span class="text-[9px] cursor-pointer hover:text-white bg-slate-700 px-2 rounded" onclick="window.clearLog()">清除</span>
+                <div class="flex items-center gap-3">
+                    <span class="w-4 h-4 rounded-full shadow-sm" style="background:#10b981"></span> 社區建置
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="w-4 h-4 rounded-full shadow-sm" style="background:#3b82f6"></span> 家充設備
                 </div>
             </div>
         </div>
-        <div id="map"></div>
+
+        <!-- 懸浮系統狀態列 (頂部置中) -->
+        <div id="status-overlay" class="absolute top-5 left-1/2 transform -translate-x-1/2 bg-slate-900/85 text-white px-5 py-2.5 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] text-xs font-bold z-50 flex items-center gap-2.5 backdrop-blur-md transition-all duration-500">
+            <i id="sys-status-icon" class="fas fa-spinner fa-spin text-blue-400 text-sm"></i> 
+            <span id="sys-status-text" class="tracking-wide">系統初始化...</span>
+        </div>
     </div>
 
     <!-- Firebase v11 & 核心邏輯 -->
@@ -86,7 +58,7 @@
         import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // 🚀 全自動設定區 (固定寫死，無 UI 設定)
+        // 🚀 全自動設定區 (寫死於程式中)
         // ==========================================
         const CONFIG = {
             RAGIC_SERVER: "ap14",
@@ -101,20 +73,36 @@
         let map, geocoder, allData = [];
         let markers = [];
         let bounds;
+        let globalInfoWindow = null; // 唯一資訊視窗實例
         
         let db, auth, currentUser;
         let cloudCache = {}; 
         
-        // --- 狀態控制函式 ---
-        function setSysStatus(msg, icon, colorClass) {
-            const el = document.getElementById('sys-status');
-            if (el) {
-                el.className = `text-[11px] text-center font-bold py-1.5 rounded bg-slate-900 border border-slate-700 ${colorClass}`;
-                el.innerHTML = `<i class="${icon}"></i> ${msg}`;
+        // --- 狀態控制函式 (懸浮列) ---
+        function setSysStatus(msg, iconClass, autoHide = false) {
+            const overlay = document.getElementById('status-overlay');
+            const textEl = document.getElementById('sys-status-text');
+            const iconEl = document.getElementById('sys-status-icon');
+            
+            if (overlay && textEl && iconEl) {
+                overlay.classList.remove('fade-out');
+                textEl.innerText = msg;
+                iconEl.className = iconClass;
+
+                if (autoHide) {
+                    setTimeout(() => { overlay.classList.add('fade-out'); }, 4000);
+                }
             }
         }
 
-        // --- Firebase 初始化 (支援環境智能切換) ---
+        // --- 內部 Log (不顯示於畫面，僅開發者按 F12 可見) ---
+        function log(msg, type='info') {
+            if (type === 'err') console.error(`[EV-Map] ${msg}`);
+            else if (type === 'warn') console.warn(`[EV-Map] ${msg}`);
+            else console.log(`[EV-Map] ${msg}`);
+        }
+
+        // --- Firebase 初始化 ---
         const initFirebase = async () => {
             try {
                 let firebaseConfig;
@@ -123,7 +111,6 @@
                 if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config !== '{}') {
                     firebaseConfig = JSON.parse(__firebase_config);
                     isPreviewEnv = true;
-                    log(`ℹ️ 偵測到預覽環境，使用系統內建資料庫`, 'info');
                 } else {
                     firebaseConfig = {
                         apiKey: "AIzaSyCGqiHwPv2ero7SVmqN5gkyfqDh5o2AEjo",
@@ -131,10 +118,8 @@
                         projectId: "ev-map-1470c",
                         storageBucket: "ev-map-1470c.firebasestorage.app",
                         messagingSenderId: "314662873363",
-                        appId: "1:314662873363:web:d2124b85c423ab2bf7d2e6",
-                        measurementId: "G-3PJP8NJGEB"
+                        appId: "1:314662873363:web:d2124b85c423ab2bf7d2e6"
                     };
-                    log(`ℹ️ 偵測到正式環境，連線至 ev-map-1470c`, 'info');
                 }
                 
                 const app = initializeApp(firebaseConfig);
@@ -149,94 +134,64 @@
 
                 onAuthStateChanged(auth, (user) => {
                     currentUser = user;
-                    const statusEl = document.getElementById('fb-status');
                     if (user) {
-                        statusEl.innerText = "已連線";
-                        statusEl.className = "text-[9px] text-green-400 font-bold";
                         setupFirestoreListener(isPreviewEnv);
-                        
-                        // 🚀 全自動觸發：連線成功後自動讀取 Ragic 資料
-                        setTimeout(() => { window.loadData(); }, 1500);
+                        setTimeout(() => { window.loadData(); }, 1000); // 連線成功後載入資料
                     } else {
-                        statusEl.innerText = "未登入";
-                        statusEl.className = "text-[9px] text-red-400 font-bold";
+                        setSysStatus('系統未登入', 'fas fa-exclamation-triangle text-red-400');
                     }
                 });
             } catch (e) {
                 console.error("Firebase Init Error:", e);
-                const statusEl = document.getElementById('fb-status');
-                
-                // 💡 更精確的錯誤指引提示
-                if (e.code === 'auth/configuration-not-found' || e.code === 'auth/admin-restricted-operation') {
-                    log(`🔥 Firebase 權限錯誤：您尚未開啟匿名登入，或網域未被授權！`, 'err');
-                    log(`👉 步驟 1: 去 Firebase 後台 -> Authentication -> Sign-in method -> 開啟「匿名(Anonymous)」。`, 'warn');
-                    log(`👉 步驟 2: 去 Firebase 後台 -> Authentication -> Settings -> 授權網域 -> 新增 change30137-netizen.github.io。`, 'warn');
-                    if (statusEl) { statusEl.innerText = "權限遭拒"; statusEl.className = "text-[9px] text-red-400 font-bold"; }
-                    // alert("Firebase 驗證設定尚未完成！\n\n請前往 Firebase 後台：\n1. 開啟「匿名登入 (Anonymous)」\n2. 將 change30137-netizen.github.io 加入「授權網域」\n\n設定完畢後重新整理網頁即可。");
-                } else {
-                    log(`🔥 Firebase 初始化失敗: ${e.message}`, 'err');
-                    if (statusEl) { statusEl.innerText = "連線失敗"; statusEl.className = "text-[9px] text-red-400 font-bold"; }
-                }
-                
-                // ⚠️ 防呆機制：即使 Firebase 異常，仍然強制載入 Ragic 地圖
-                log(`🔄 啟動防呆機制，強制載入地圖資料...`, 'warn');
-                setTimeout(() => { window.loadData(); }, 1000);
+                setSysStatus('資料庫連線異常，正在嘗試離線載入', 'fas fa-wifi text-red-400');
+                setTimeout(() => { window.loadData(); }, 1500); // 失敗防呆
             }
         };
 
         // --- 監聽 Firestore 快取變更 ---
         const setupFirestoreListener = (isPreviewEnv) => {
             if (!currentUser) return;
-            
             const currentAppId = typeof __app_id !== 'undefined' && isPreviewEnv ? __app_id : 'ev-map-production';
             const cacheRef = collection(db, 'artifacts', currentAppId, 'public', 'data', 'coords_cache');
             
             onSnapshot(cacheRef, (snapshot) => {
                 cloudCache = {}; 
-                snapshot.forEach(docSnap => {
-                    cloudCache[docSnap.id] = docSnap.data();
-                });
-                
-                const countEl = document.getElementById('cache-count');
-                if (countEl) countEl.innerText = Object.keys(cloudCache).length;
-                
-                log(`☁️ 雲端快取同步完成，共 ${Object.keys(cloudCache).length} 筆座標`, 'success');
-                
-                if (allData.length > 0) renderListOnly();
+                snapshot.forEach(docSnap => { cloudCache[docSnap.id] = docSnap.data(); });
+                log(`雲端快取同步完成，共 ${Object.keys(cloudCache).length} 筆座標`, 'success');
+                if (allData.length > 0) renderMarkersOnly();
             }, (error) => {
-                log(`🔥 雲端快取讀取錯誤: ${error.message}`, 'err');
+                log(`雲端快取讀取錯誤: ${error.message}`, 'err');
             });
-            
             window.currentAppId = currentAppId;
         };
 
-        window.clearLog = function() {
-            const win = document.getElementById('log-window');
-            if (win) win.innerHTML = `<div class="text-yellow-400 border-b border-gray-700 pb-1 mb-1 flex justify-between sticky top-0 bg-[#0f172a] z-10"><span class="font-bold">> 系統日誌</span><span class="text-[9px] cursor-pointer hover:text-white bg-slate-700 px-2 rounded" onclick="window.clearLog()">清除</span></div>`;
-        };
-        
-        function log(msg, type='info') {
-            try {
-                const win = document.getElementById('log-window');
-                if (!win) return;
-                const color = type === 'err' ? '#f87171' : type === 'warn' ? '#facc15' : type === 'success' ? '#4ade80' : '#60a5fa';
-                const time = new Date().toLocaleTimeString('zh-TW', {hour12:false});
-                win.innerHTML += `<div class="log-entry" style="color:${color}">[${time}] ${msg}</div>`;
-                win.scrollTop = win.scrollHeight;
-            } catch(e) {}
-        }
-
+        // --- Google Maps 初始化 ---
         window.initMap = function() {
             try {
                 const mapEl = document.getElementById("map");
                 if (!mapEl) return;
-                map = new google.maps.Map(mapEl, { center: { lat: 23.6, lng: 120.9 }, zoom: 8, mapTypeControl: false });
+                
+                // 初始化地圖，隱藏多餘控制項保持版面乾淨
+                map = new google.maps.Map(mapEl, { 
+                    center: { lat: 23.6, lng: 120.9 }, 
+                    zoom: 8, 
+                    mapTypeControl: false,
+                    streetViewControl: false,
+                    fullscreenControl: true
+                });
+                
                 geocoder = new google.maps.Geocoder();
                 bounds = new google.maps.LatLngBounds();
-                log("🗺️ Google Maps API 載入完成", "info");
-            } catch (e) { log("❌ 地圖載入失敗: " + e.message, "err"); }
+                globalInfoWindow = new google.maps.InfoWindow(); // 全域共用的資訊視窗
+                
+                log("Google Maps API 載入完成", "info");
+            } catch (e) { 
+                log("地圖載入失敗: " + e.message, "err"); 
+                setSysStatus('地圖載入失敗', 'fas fa-exclamation-circle text-red-400');
+            }
         };
 
+        // --- 繪製自訂圖釘 ---
         function getCustomPin(color) {
             const width = 36; const height = 48;
             const svgData = `
@@ -252,25 +207,22 @@
             };
         }
 
-        // --- 1. 讀取資料與隱私保護處理 (全自動) ---
+        // --- 1. 讀取 Ragic 資料與隱私處理 ---
         window.loadData = function() {
-            setSysStatus('正在同步 Ragic 資料...', 'fas fa-sync-alt fa-spin', 'text-blue-400');
+            setSysStatus('正在同步即時資料庫...', 'fas fa-sync-alt fa-spin text-blue-400');
 
             const key = CONFIG.PREFILL_RAGIC_KEY;
             const url = `https://${CONFIG.RAGIC_SERVER}.ragic.com/${CONFIG.RAGIC_PATH}?api&naming=EID&APIKey=${encodeURIComponent(key)}&callback=ragicCallback`;
 
-            log(`📡 正在連線讀取 Ragic 資料...`, "info");
-            
             window.ragicCallback = function(res) {
                 if (!res || res.status === 'ERROR') {
-                    log(`❌ API 讀取錯誤: ${res?.msg || '未知'}`, "err");
-                    setSysStatus('讀取失敗，請聯絡管理員', 'fas fa-exclamation-triangle', 'text-red-400');
+                    setSysStatus('資料讀取失敗，請重新整理網頁', 'fas fa-exclamation-triangle text-red-400');
                     return;
                 }
                 
                 let data = Object.values(res);
-                let privacyCount = 0;
 
+                // 過濾空地址，並執行隱私模糊化
                 data = data.filter(item => {
                     const addr = item[FIELDS.ADDR];
                     return addr && typeof addr === 'string' && addr.trim().length > 0;
@@ -290,17 +242,14 @@
                                 if (idx !== -1) item[FIELDS.ADDR] = addr.substring(0, idx);
                             }
                         }
-                        privacyCount++;
                     }
                     return item;
                 });
                 
                 allData = data;
-                log(`✅ 讀取 ${allData.length} 筆資料 (隱藏 ${privacyCount} 筆家充)`, "success");
+                renderMarkersOnly(); 
 
-                renderListOnly(); 
-
-                // 🚀 自動檢查：若有尚未解析的新地址，自動觸發「解析並上傳」
+                // 檢查是否需要啟動背景解析
                 let needsSync = false;
                 for (let i = 0; i < allData.length; i++) {
                     const coordsRaw = allData[i][FIELDS.COORDS];
@@ -308,34 +257,28 @@
                     const hasOriginalCoords = coordsRaw && coordsRaw.includes(',') && !isNaN(parseFloat(coordsRaw.split(',')[0]));
                     const hasCache = !!cloudCache[docId];
                     if (!hasOriginalCoords && !hasCache) {
-                        needsSync = true;
-                        break;
+                        needsSync = true; break;
                     }
                 }
                 
                 if (needsSync) {
-                    log(`🔄 發現未解析的新地址，自動啟動解析與同步...`, "warn");
-                    setSysStatus('發現新地址，啟動智能解析...', 'fas fa-cogs fa-spin', 'text-yellow-400');
+                    setSysStatus('發現新工程，正在繪製地圖...', 'fas fa-cogs fa-spin text-yellow-400');
                     setTimeout(() => { window.startDynamicMapping(); }, 1500);
                 } else {
-                    setSysStatus('資料已是最新狀態', 'fas fa-check-circle', 'text-green-400');
+                    // 若無新資料，提示成功並於 4 秒後淡出隱藏
+                    setSysStatus('✅ 地圖資料已是最新狀態', 'fas fa-check-circle text-green-400', true);
                 }
             };
 
             const script = document.createElement('script');
             script.src = url;
-            script.onerror = () => {
-                log("❌ 連線中斷 (Network Error)", "err");
-                setSysStatus('網路連線異常', 'fas fa-wifi', 'text-red-400');
-            };
+            script.onerror = () => { setSysStatus('網路連線異常，無法讀取資料', 'fas fa-wifi text-red-400'); };
             document.body.appendChild(script);
         };
 
-        // 繪製初始列表並合併雲端快取
-        function renderListOnly() {
-            const list = document.getElementById('project-list');
-            list.innerHTML = '';
-            
+        // --- 將所有資料轉化為圖釘 (無左側選單) ---
+        function renderMarkersOnly() {
+            // 清除舊圖釘
             markers.forEach(m => m.setMap(null));
             markers = [];
             bounds = new google.maps.LatLngBounds();
@@ -350,54 +293,27 @@
                 const color = COLORS[cat] || COLORS['default'];
                 
                 const hasOriginalCoords = coordsRaw && coordsRaw.includes(',') && !isNaN(parseFloat(coordsRaw.split(',')[0]));
-                
                 const docId = name || id; 
                 const cacheData = cloudCache[docId];
                 const hasCache = !!cacheData;
                 
-                const card = document.createElement('div');
-                card.className = `card`;
-                card.id = `card-${id}`;
-                card.style.borderLeftWidth = '4px';
-                card.style.borderLeftColor = color;
-                
-                // 為了乾淨版面，移除列表項目中關於快取的工程提示字眼
-                card.innerHTML = `
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded text-white shadow-sm" style="background:${color}">${cat}</span>
-                    </div>
-                    <h3 class="font-bold text-gray-800 text-[13px] leading-tight">${name}</h3>
-                    <p class="text-[11px] text-gray-500 mt-1 truncate"><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>${addr}</p>
-                `;
-                
-                list.appendChild(card);
-
+                // 優先使用 Ragic 原生座標，其次使用 Firebase 快取座標
                 if (hasOriginalCoords) {
                     const [lat, lng] = coordsRaw.split(',').map(Number);
-                    addMarkerToMap(id, name, lat, lng, color, cat);
+                    addMarkerToMap(id, name, addr, lat, lng, color, cat);
                 } else if (hasCache && cacheData.coords) {
                     const [lat, lng] = cacheData.coords.split(',').map(Number);
-                    addMarkerToMap(id, name, lat, lng, color, cat);
+                    addMarkerToMap(id, name, addr, lat, lng, color, cat);
                 }
             });
             
+            // 地圖自動縮放以包含所有圖釘
             if (markers.length > 0) map.fitBounds(bounds);
         }
 
-        // --- 2. 啟動動態解析並上傳 Firebase (全自動) ---
+        // --- 2. 啟動動態解析並上傳 Firebase (背景執行) ---
         window.startDynamicMapping = async function() {
-            if (!geocoder) return log("地圖元件未載入，稍後重試", "err");
-            
-            if (!currentUser) {
-                return log("Firebase 未登入，無法同步", "err");
-            }
-            
-            setSysStatus('正在解析座標...', 'fas fa-satellite-dish fa-spin', 'text-yellow-400');
-            log(`🚀 啟動智能解析 (自動跳過雲端已有項目)...`, "warn");
-
-            let processCount = 0;
-            let skipCount = 0;
-            let failCount = 0;
+            if (!geocoder || !currentUser) return;
 
             for (let i = 0; i < allData.length; i++) {
                 const item = allData[i];
@@ -418,8 +334,6 @@
 
                     while (!success && retries < 3) {
                         try {
-                            log(`🔍 查詢 [${i+1}/${allData.length}]: ${addr}`, "info");
-                            
                             const loc = await new Promise((resolve, reject) => {
                                 geocoder.geocode({ address: addr }, (res, status) => {
                                     if (status === 'OK' && res.length > 0) resolve(res[0].geometry.location);
@@ -431,61 +345,76 @@
                             const lng = loc.lng();
                             const coordsStr = `${lat},${lng}`;
 
-                            // ✅ 寫入 Firebase Firestore
+                            // 寫入 Firebase
                             const targetAppId = window.currentAppId || 'ev-map-production';
                             const docRef = doc(db, 'artifacts', targetAppId, 'public', 'data', 'coords_cache', docId);
-                            await setDoc(docRef, {
-                                coords: coordsStr,
-                                address: addr,
-                                updatedAt: new Date().toISOString()
-                            });
+                            await setDoc(docRef, { coords: coordsStr, address: addr, updatedAt: new Date().toISOString() });
 
-                            addMarkerToMap(id, name, lat, lng, color, cat);
-                            
+                            addMarkerToMap(id, name, addr, lat, lng, color, cat);
                             success = true;
-                            processCount++;
                         } catch (e) {
                             if (e === 'OVER_QUERY_LIMIT') {
                                 retries++;
-                                log(`⚠️ 頻率限制，等待重試 (${retries}/3)...`, "warn");
                                 await new Promise(r => setTimeout(r, 2000));
                             } else {
-                                log(`❌ 失敗 (${addr}): 無法定位`, "err");
-                                failCount++;
                                 break;
                             }
                         }
                     }
-
                     await new Promise(r => setTimeout(r, 800)); 
-                } else {
-                    skipCount++;
                 }
             }
 
-            log(`🎉 結束！新解析並上傳 ${processCount} 筆，失敗 ${failCount} 筆，從雲端跳過 ${skipCount} 筆。`, "success");
-            setSysStatus('✅ 資料已是最新狀態', 'fas fa-check-circle', 'text-green-400');
-            
+            // 完成後顯示綠勾勾，並在 4 秒後淡出
+            setSysStatus('✅ 地圖資料已是最新狀態', 'fas fa-check-circle text-green-400', true);
             if (markers.length > 0) map.fitBounds(bounds);
         }
 
-        // 共用函式：加圖釘到地圖 (Z-Index 置頂優化)
-        function addMarkerToMap(id, name, lat, lng, color, cat) {
+        // --- 核心：建立圖釘與精美點擊資訊卡 ---
+        function addMarkerToMap(id, name, addr, lat, lng, color, cat) {
             let markerZIndex = 1;
-            if (cat === '專案' || cat === '社區') {
-                markerZIndex = 1000;
-            } else if (cat === '家充') {
-                markerZIndex = 10;
-            }
+            if (cat === '專案' || cat === '社區') markerZIndex = 1000;
+            else if (cat === '家充') markerZIndex = 10;
 
             const marker = new google.maps.Marker({
-                position: {lat, lng}, map: map, title: name, icon: getCustomPin(color), zIndex: markerZIndex
+                position: {lat, lng}, 
+                map: map, 
+                title: name, 
+                icon: getCustomPin(color), 
+                zIndex: markerZIndex
             });
-            const clickFn = () => { map.panTo({lat, lng}); map.setZoom(16); };
-            marker.addListener('click', clickFn);
             
-            const card = document.getElementById(`card-${id}`);
-            if (card) { card.onclick = clickFn; card.classList.add('cursor-pointer'); }
+            // 點擊事件：打開客製化的 InfoWindow
+            marker.addListener('click', () => {
+                // 完美還原使用者提供的截圖樣式
+                const contentHtml = `
+                    <div style="font-family: 'Microsoft JhengHei', sans-serif; min-width: 220px; max-width: 280px; padding: 2px 0;">
+                        <div style="border-left: 5px solid ${color}; padding-left: 10px;">
+                            <span style="background-color: ${color}; color: white; padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block;">
+                                ${cat}
+                            </span>
+                            <h3 style="margin: 8px 0 6px 0; font-size: 15px; font-weight: 800; color: #1f2937; line-height: 1.3;">
+                                ${name}
+                            </h3>
+                            <p style="margin: 0; font-size: 12px; color: #6b7280; display: flex; align-items: flex-start; gap: 6px; font-weight: 500;">
+                                <i class="fas fa-map-marker-alt" style="color: #9ca3af; margin-top: 2px;"></i> 
+                                <span>${addr}</span>
+                            </p>
+                        </div>
+                    </div>
+                `;
+
+                globalInfoWindow.setContent(contentHtml);
+                globalInfoWindow.open({
+                    anchor: marker,
+                    map,
+                    shouldFocus: false
+                });
+
+                // 將地圖中心移至該圖釘並稍微放大
+                map.panTo({lat, lng});
+                if (map.getZoom() < 14) map.setZoom(14);
+            });
             
             markers.push(marker);
             bounds.extend({lat, lng});
