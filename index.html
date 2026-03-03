@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EV Map v26.0 Fullscreen Immersive Edition</title>
+    <title>EV Map v26.1 Fullscreen Immersive Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -227,9 +227,17 @@
                     const addr = item[FIELDS.ADDR];
                     const name = item[FIELDS.NAME] || '';
                     
-                    // 過濾掉名稱包含「酷澎倉庫」的案件
+                    // 1. 過濾掉名稱包含「酷澎倉庫」的案件
                     if (name.includes('酷澎倉庫')) {
                         return false;
+                    }
+
+                    // 2. 🌟 智能隱藏過濾：若任何欄位（包含案件狀態）出現「取消」字眼，即排除此案件
+                    const isCancelled = Object.values(item).some(val => 
+                        typeof val === 'string' && val.includes('取消')
+                    );
+                    if (isCancelled) {
+                        return false; // 隱藏/刪除該筆案件
                     }
                     
                     return addr && typeof addr === 'string' && addr.trim().length > 0;
