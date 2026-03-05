@@ -10,7 +10,7 @@ export const stopImages: Record<string, string> = {
   'grocery':    unsplash('photo-1604719312566-8912e9227c6a'),
   'guesthouse': 'https://a0.muscache.com/im/pictures/miso/Hosting-680010670650418235/original/f18b1d07-41b1-4662-acd0-3634ffa4471d.jpeg',  // 只此清綠實景
   'chill':      unsplash('photo-1551024709-8f23befc6f87'),                                       // drinks/cheers
-  'nightmarket':'https://upload.wikimedia.org/wikipedia/commons/8/80/Luodong_Night_Market.JPG',  // 羅東夜市實景
+  'nightmarket': unsplash('photo-1504674900247-0877df9cc836'),  // 夜市美食意象
   'party':      unsplash('photo-1528495612343-9ca9f4a4de28'),
 
   // Day 2
