@@ -43,15 +43,15 @@ export default function StopCard({ item, index }: Props) {
     >
       {/* Photo / Logo */}
       {imageUrl && (
-        <div className={`relative overflow-hidden rounded-t-[20px] ${isLogo ? 'h-28 bg-[#070404] flex items-center justify-center' : 'h-44'}`}>
-          <img src={imageUrl} alt={item.title} className={isLogo ? 'h-14 w-auto object-contain' : 'w-full h-full object-cover'} loading="lazy" />
+        <div className={`relative overflow-hidden rounded-t-[20px] ${isLogo ? 'h-24 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center border-b border-divider' : 'h-44'}`}>
+          <img src={imageUrl} alt={item.title} className={isLogo ? 'h-12 w-auto object-contain' : 'w-full h-full object-cover'} loading="lazy" />
           {!isLogo && <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />}
           <div className="absolute bottom-3 left-4 flex items-center gap-2">
-            <span className="text-[12px] font-bold text-white mono bg-black/30 backdrop-blur-md px-2 py-0.5 rounded-lg">
+            <span className={`text-[12px] font-bold mono px-2 py-0.5 rounded-lg ${isLogo ? 'text-text-1 bg-white/70' : 'text-white bg-black/30 backdrop-blur-md'}`}>
               {item.time}
             </span>
             {item.tag && (
-              <span className={`text-[10px] font-semibold text-white backdrop-blur-md px-2 py-0.5 rounded-lg ${tagColors[item.tag] || 'bg-brand/80'}`}>
+              <span className={`text-[10px] font-semibold text-white px-2 py-0.5 rounded-lg ${isLogo ? '' : 'backdrop-blur-md'} ${tagColors[item.tag] || 'bg-brand/80'}`}>
                 {item.tag}
               </span>
             )}

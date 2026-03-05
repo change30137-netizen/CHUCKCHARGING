@@ -105,7 +105,7 @@ export default function MealPicker() {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8 text-center" onClick={(e) => e.stopPropagation()}>
         <p className="text-[32px] font-bold text-brand-green mono">Done</p>
         <p className="text-[13px] text-text-2 mt-1">{name} 的餐點已記錄</p>
-        <button onClick={() => setSubmitted(false)} className="mt-4 text-[13px] text-brand font-semibold">重新選擇 / 改票</button>
+        <button onClick={() => setSubmitted(false)} className="mt-4 text-[13px] text-brand font-semibold">重新選擇</button>
         {notVoted.length > 0 && (
           <p className="mt-4 text-[12px] text-text-3">還沒選：{notVoted.join('、')}</p>
         )}
