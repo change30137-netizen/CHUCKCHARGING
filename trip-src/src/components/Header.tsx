@@ -28,7 +28,7 @@ function CountdownRing({ value, max, label, size = 44 }: { value: number; max: n
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#f0f0f0" strokeWidth={3} />
         <motion.circle
           cx={size/2} cy={size/2} r={r} fill="none"
-          stroke="#e7b94f"
+          stroke="#f97316"
           strokeWidth={3}
           strokeLinecap="round"
           strokeDasharray={circ}

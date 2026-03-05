@@ -89,7 +89,7 @@ export default function MealPicker() {
       })
       // no-cors 無法讀 response，但 GAS 會正確處理
       setSubmitted(true)
-      confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#e7b94f', '#3b82f6', '#10b981'] })
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#f97316', '#3b82f6', '#10b981'] })
     } catch {
       setError('網路錯誤，請確認網路連線後再試')
     } finally {
