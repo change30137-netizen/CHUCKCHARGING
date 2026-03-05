@@ -120,7 +120,7 @@ export default function MealPicker() {
 
       <OptionGrid label="主菜（7 選 1）" options={mainCourses} selected={mainCourse} onSelect={setMainCourse} />
       <OptionGrid label="甜點（6 選 1）" options={desserts} selected={dessert} onSelect={setDessert} />
-      <OptionGrid label="飲品（9 選 1）" options={drinks} selected={drink} onSelect={setDrink} />
+      <OptionGrid label="飲品（18 選 1）" options={drinks} selected={drink} onSelect={setDrink} />
 
       <div className="mb-5">
         <p className="text-[11px] font-bold text-text-3 tracking-wider uppercase mb-2">備註（選填）</p>

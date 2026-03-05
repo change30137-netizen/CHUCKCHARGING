@@ -25,13 +25,25 @@ export const desserts: MenuOption[] = [
 ]
 
 export const drinks: MenuOption[] = [
-  { id: 'sparkling', name: '氣泡飲（原味/青蘋果/白桃/黑醋栗）', emoji: '🫧' },
+  // 氣泡系列
+  { id: 'sparkling-original', name: '原味氣泡', emoji: '🫧' },
+  { id: 'sparkling-apple', name: '青蘋果氣泡', emoji: '🫧' },
+  { id: 'sparkling-peach', name: '白桃氣泡', emoji: '🫧' },
+  { id: 'sparkling-cassis', name: '黑醋栗氣泡', emoji: '🫧' },
+  // 果汁 & 茶
   { id: 'fruit-juice', name: '現榨香果果汁', emoji: '🍹' },
   { id: 'tomato', name: '覆女小番茄汁', emoji: '🍅' },
   { id: 'fungus', name: '養生黑木耳汁', emoji: '🖤' },
   { id: 'thai-tea', name: '泰式奶茶', emoji: '🧋' },
-  { id: 'cocoa', name: '可可歐蕾（冰/熱）', emoji: '🍫' },
+  { id: 'cocoa-ice', name: '可可歐蕾（冰）', emoji: '🍫' },
+  { id: 'cocoa-hot', name: '可可歐蕾（熱）', emoji: '🍫' },
   { id: 'lotus-tea', name: '蓮花茶（無咖啡因）', emoji: '🪷' },
   { id: 'oolong', name: '烏龍茶（原片）', emoji: '🍵' },
-  { id: 'coffee', name: '美式/拿鐵/卡布（熱或冰）', emoji: '☕' },
+  // 咖啡系列
+  { id: 'americano-ice', name: '冰美式', emoji: '☕' },
+  { id: 'americano-hot', name: '熱美式', emoji: '☕' },
+  { id: 'latte-ice', name: '冰拿鐵', emoji: '☕' },
+  { id: 'latte-hot', name: '熱拿鐵', emoji: '☕' },
+  { id: 'cappuccino-ice', name: '冰卡布奇諾', emoji: '☕' },
+  { id: 'cappuccino-hot', name: '熱卡布奇諾', emoji: '☕' },
 ]
