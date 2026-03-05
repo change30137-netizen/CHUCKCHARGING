@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti'
 import { memberNames } from '../data/members'
 import { mainCourses, desserts, drinks } from '../data/menu'
 import type { MenuOption } from '../data/menu'
+import { fetchVotes, getCached, type Vote } from '../hooks/useVote'
 
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwyYb5CrjTE-D4gpL2PRnfpU5Vka75eciyC7ysmwcGqKfmSDtndgCPuWYD7ozmf2Jb7hQ/exec'
 
@@ -46,29 +47,25 @@ export default function MealPicker() {
   const [submitted, setSubmitted] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
-  const [votes, setVotes] = useState<Array<Record<string, string>>>([])
+  const [votes, setVotes] = useState<Vote[]>(getCached)
   const canSubmit = name && mainCourse && dessert && drink && !sending
 
-  // Load existing votes on mount
   useEffect(() => {
-    fetch(GAS_URL)
-      .then(r => r.json())
-      .then(d => { if (d.success) setVotes(d.data) })
-      .catch(() => {})
+    fetchVotes().then(setVotes)
   }, [submitted])
 
   // Auto-fill if this person already voted
   useEffect(() => {
     if (!name || votes.length === 0) return
-    const existing = votes.find(v => v['\u59D3\u540D'] === name)
+    const existing = votes.find(v => v.name === name)
     if (existing) {
-      const mc = mainCourses.find(o => o.name === existing['\u4E3B\u83DC'])
-      const ds = desserts.find(o => o.name === existing['\u7518\u9EDE'])
-      const dk = drinks.find(o => o.name === existing['\u98F2\u54C1'])
+      const mc = mainCourses.find(o => o.name === existing.mainCourse)
+      const ds = desserts.find(o => o.name === existing.dessert)
+      const dk = drinks.find(o => o.name === existing.drink)
       if (mc) setMainCourse(mc.id)
       if (ds) setDessert(ds.id)
       if (dk) setDrink(dk.id)
-      setNote(existing['\u5099\u8A3B'] || '')
+      setNote(existing.note || '')
     }
   }, [name, votes])
 
@@ -87,7 +84,6 @@ export default function MealPicker() {
         headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify({ name, mainCourse: mainName, dessert: dessertName, drink: drinkName, note: note.trim() }),
       })
-      // no-cors 無法讀 response，但 GAS 會正確處理
       setSubmitted(true)
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#f97316', '#3b82f6', '#10b981'] })
     } catch {
@@ -97,8 +93,7 @@ export default function MealPicker() {
     }
   }
 
-  const votedNames = votes.map(v => v['\u59D3\u540D']).filter(Boolean)
-  const notVoted = memberNames.filter(n => !votedNames.includes(n))
+  const notVoted = memberNames.filter(n => !votes.some(v => v.name === n))
 
   if (submitted) {
     return (

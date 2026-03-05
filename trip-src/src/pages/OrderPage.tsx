@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { memberNames } from '../data/members'
-
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwyYb5CrjTE-D4gpL2PRnfpU5Vka75eciyC7ysmwcGqKfmSDtndgCPuWYD7ozmf2Jb7hQ/exec'
-
-interface Vote {
-  name: string
-  mainCourse: string
-  dessert: string
-  drink: string
-  note: string
-  time: string
-}
+import { fetchVotes, getCached, type Vote } from '../hooks/useVote'
 
 function tally(votes: Vote[], key: keyof Vote) {
   const map: Record<string, number> = {}
@@ -23,26 +13,14 @@ function tally(votes: Vote[], key: keyof Vote) {
 }
 
 export default function OrderPage() {
-  const [votes, setVotes] = useState<Vote[]>([])
-  const [loading, setLoading] = useState(true)
+  const [votes, setVotes] = useState<Vote[]>(getCached)
+  const [loading, setLoading] = useState(votes.length === 0)
 
   useEffect(() => {
-    fetch(GAS_URL)
-      .then(r => r.json())
-      .then(d => {
-        if (d.success) {
-          setVotes(d.data.map((row: Record<string, string>) => ({
-            name: row['\u59D3\u540D'] || '',
-            mainCourse: row['\u4E3B\u83DC'] || '',
-            dessert: row['\u7518\u9EDE'] || '',
-            drink: row['\u98F2\u54C1'] || '',
-            note: row['\u5099\u8A3B'] || '',
-            time: row['\u6295\u7968\u6642\u9593'] || '',
-          })))
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    fetchVotes().then(v => {
+      setVotes(v)
+      setLoading(false)
+    })
   }, [])
 
   const votedNames = votes.map(v => v.name).filter(Boolean)
@@ -67,12 +45,19 @@ export default function OrderPage() {
 
       <div className="px-5 space-y-3 pb-6">
         {loading && (
-          <div className="cal-card p-8 text-center">
-            <p className="text-[14px] text-text-3">載入中...</p>
+          <div className="cal-card p-8">
+            <p className="text-[14px] text-text-3 text-center mb-4">從 Google Sheets 載入中...</p>
+            <div className="h-1.5 bg-bg rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-brand rounded-full"
+                initial={{ width: '0%' }}
+                animate={{ width: '90%' }}
+                transition={{ duration: 3, ease: 'easeOut' }}
+              />
+            </div>
           </div>
         )}
 
-        {/* Not voted */}
         {!loading && notVoted.length > 0 && (
           <div className="cal-card p-5">
             <p className="text-[11px] font-bold text-red-400 tracking-wider uppercase mb-2">還沒選 ({notVoted.length})</p>
@@ -84,7 +69,6 @@ export default function OrderPage() {
           </div>
         )}
 
-        {/* Tally summary for ordering */}
         {!loading && votes.length > 0 && (
           <>
             <TallyCard title="主菜統計" items={mainTally} />
@@ -93,7 +77,6 @@ export default function OrderPage() {
           </>
         )}
 
-        {/* Individual cards */}
         {!loading && votes.map((v, i) => (
           <motion.div
             key={v.name}

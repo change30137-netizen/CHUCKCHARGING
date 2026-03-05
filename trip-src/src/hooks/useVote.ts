@@ -1,78 +1,54 @@
-import { useState, useEffect, useCallback } from 'react'
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwyYb5CrjTE-D4gpL2PRnfpU5Vka75eciyC7ysmwcGqKfmSDtndgCPuWYD7ozmf2Jb7hQ/exec'
+const CACHE_KEY = 'trip-votes-cache'
 
-const GAS_URL = '__GAS_URL__' // will be replaced with actual GAS deployment URL
-
-export interface VoteRecord {
+export interface Vote {
   name: string
   mainCourse: string
   dessert: string
   drink: string
-  timestamp: string
+  note: string
+  time: string
 }
 
-export function useVote() {
-  const [votes, setVotes] = useState<VoteRecord[]>([])
-  const [loading, setLoading] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchVotes = useCallback(async () => {
-    if (GAS_URL === '__GAS_URL__') {
-      // Demo mode: use localStorage
-      const stored = localStorage.getItem('trip-votes')
-      if (stored) setVotes(JSON.parse(stored))
-      return
-    }
-    setLoading(true)
-    try {
-      const res = await fetch(GAS_URL)
-      const data = await res.json()
-      setVotes(data.votes || [])
-    } catch {
-      setError('無法載入投票結果')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  const submitVote = useCallback(async (vote: Omit<VoteRecord, 'timestamp'>) => {
-    setSubmitting(true)
-    setError(null)
-    try {
-      if (GAS_URL === '__GAS_URL__') {
-        // Demo mode: use localStorage
-        const stored = localStorage.getItem('trip-votes')
-        const existing: VoteRecord[] = stored ? JSON.parse(stored) : []
-        const idx = existing.findIndex(v => v.name === vote.name)
-        const record = { ...vote, timestamp: new Date().toISOString() }
-        if (idx >= 0) existing[idx] = record
-        else existing.push(record)
-        localStorage.setItem('trip-votes', JSON.stringify(existing))
-        setVotes(existing)
-        return true
-      }
-      const res = await fetch(GAS_URL, {
-        method: 'POST',
-        body: JSON.stringify(vote),
-      })
-      const data = await res.json()
-      if (data.success) {
-        await fetchVotes()
-        return true
-      }
-      setError(data.error || '投票失敗')
-      return false
-    } catch {
-      setError('網路錯誤，請稍後再試')
-      return false
-    } finally {
-      setSubmitting(false)
-    }
-  }, [fetchVotes])
-
-  useEffect(() => {
-    fetchVotes()
-  }, [fetchVotes])
-
-  return { votes, loading, submitting, error, submitVote, fetchVotes }
+function parseRow(row: Record<string, string>): Vote {
+  // Handle both Chinese keys (from Sheet headers) and English keys (from COLS)
+  return {
+    name: (row['name'] || row['姓名'] || '').trim(),
+    mainCourse: (row['mainCourse'] || row['主菜'] || row['主菜 '] || '').trim(),
+    dessert: (row['dessert'] || row['甜點'] || '').trim(),
+    drink: (row['drink'] || row['飲品'] || '').trim(),
+    note: (row['note'] || row['備註'] || '').trim(),
+    time: (row['timestamp'] || row['投票時間'] || '').trim(),
+  }
 }
+
+// Shared promise so multiple components don't fire duplicate requests
+let fetchPromise: Promise<Vote[]> | null = null
+
+export function fetchVotes(): Promise<Vote[]> {
+  if (fetchPromise) return fetchPromise
+  fetchPromise = fetch(GAS_URL)
+    .then(r => r.json())
+    .then(d => {
+      const votes = (d.data || []).map(parseRow).filter((v: Vote) => v.name)
+      localStorage.setItem(CACHE_KEY, JSON.stringify(votes))
+      fetchPromise = null
+      return votes
+    })
+    .catch(() => {
+      fetchPromise = null
+      return getCached()
+    })
+  return fetchPromise
+}
+
+export function getCached(): Vote[] {
+  try {
+    return JSON.parse(localStorage.getItem(CACHE_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+// Pre-warm: start fetching immediately on module load
+fetchVotes()
