@@ -87,7 +87,7 @@ export const day1Schedule: ScheduleItem[] = [
   },
   {
     time: '15:30',
-    title: '入住民宿',
+    title: '入住只此清綠私人會所',
     description: '驚喜遊戲第二彈：飛鏢大賽（每人5次，高分優先選房！）',
     address: '宜蘭縣員山鄉尚深路142巷15號',
     mapUrl: 'https://maps.app.goo.gl/rouURWV9AqfXv2S18',
