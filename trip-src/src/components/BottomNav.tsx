@@ -4,6 +4,7 @@ const tabs = [
   { id: 0, label: 'Day 1' },
   { id: 1, label: 'Day 2' },
   { id: 2, label: '住宿' },
+  { id: 3, label: '點餐' },
 ]
 
 interface Props {

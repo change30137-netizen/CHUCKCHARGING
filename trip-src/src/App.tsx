@@ -5,8 +5,9 @@ import BottomNav from './components/BottomNav'
 import Day1 from './pages/Day1'
 import Day2 from './pages/Day2'
 import RoomPage from './pages/RoomPage'
+import OrderPage from './pages/OrderPage'
 
-const pages = [Day1, Day2, RoomPage]
+const pages = [Day1, Day2, RoomPage, OrderPage]
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(0)
