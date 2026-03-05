@@ -114,9 +114,13 @@ export default function MealPicker() {
         <p className="text-[11px] font-bold text-text-3 tracking-wider uppercase mb-2">你是誰</p>
         <select
           value={name} onChange={(e) => setName(e.target.value)}
-          className="w-full p-3 rounded-2xl bg-bg text-[13px] font-medium text-text-1 focus:outline-none focus:ring-2 focus:ring-brand/30 transition-all"
+          className={`w-full p-3 rounded-2xl text-[13px] font-medium text-text-1 focus:outline-none transition-all ${
+            !name
+              ? 'bg-brand/5 ring-2 ring-brand/40 text-brand'
+              : 'bg-bg focus:ring-2 focus:ring-brand/30'
+          }`}
         >
-          <option value="">請選擇</option>
+          <option value="">⚠️ 請先選擇你是誰</option>
           {memberNames.map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
       </div>
@@ -138,6 +142,12 @@ export default function MealPicker() {
       <p className="text-[12px] text-text-3 text-center mb-3">* 只有這餐需要先選，其他餐不用</p>
 
       {error && <p className="text-[12px] text-red-500 text-center mb-2">{error}</p>}
+
+      {!canSubmit && !sending && (
+        <p className="text-[12px] text-brand text-center mb-2 font-medium">
+          {!name ? '⬆ 請先選擇你是誰' : !mainCourse ? '請選主菜' : !dessert ? '請選甜點' : '請選飲品'}
+        </p>
+      )}
 
       <motion.button
         onClick={handleSubmit} disabled={!canSubmit}
