@@ -69,28 +69,21 @@ export default function MealPicker() {
     }
   }, [name, votes])
 
-  async function handleSubmit(e: React.MouseEvent) {
+  function handleSubmit(e: React.MouseEvent) {
     e.stopPropagation()
     if (!canSubmit) return
-    setSending(true)
-    setError('')
     const mainName = mainCourses.find(o => o.id === mainCourse)?.name || mainCourse
     const dessertName = desserts.find(o => o.id === dessert)?.name || dessert
     const drinkName = drinks.find(o => o.id === drink)?.name || drink
-    try {
-      await fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({ name, mainCourse: mainName, dessert: dessertName, drink: drinkName, note: note.trim() }),
-      })
-      setSubmitted(true)
-      confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#f97316', '#3b82f6', '#10b981'] })
-    } catch {
-      setError('網路錯誤，請確認網路連線後再試')
-    } finally {
-      setSending(false)
-    }
+    // Fire and forget — don't await, show success immediately
+    fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ name, mainCourse: mainName, dessert: dessertName, drink: drinkName, note: note.trim() }),
+    }).catch(() => {})
+    setSubmitted(true)
+    confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#f97316', '#3b82f6', '#10b981'] })
   }
 
   const notVoted = memberNames.filter(n => !votes.some(v => v.name === n))
