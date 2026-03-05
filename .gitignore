@@ -1,0 +1,3 @@
+trip-src/node_modules
+trip-src/dist
+trip-src/*.local
