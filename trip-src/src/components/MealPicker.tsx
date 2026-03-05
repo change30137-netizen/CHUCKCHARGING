@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { memberNames } from '../data/members'
 import { mainCourses, desserts, drinks } from '../data/menu'
 import type { MenuOption } from '../data/menu'
+
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwyYb5CrjTE-D4gpL2PRnfpU5Vka75eciyC7ysmwcGqKfmSDtndgCPuWYD7ozmf2Jb7hQ/exec'
 
 function OptionGrid({ label, options, selected, onSelect }: {
   label: string; options: MenuOption[]; selected: string; onSelect: (id: string) => void
@@ -42,27 +44,71 @@ export default function MealPicker() {
   const [drink, setDrink] = useState('')
   const [note, setNote] = useState('')
   const [submitted, setSubmitted] = useState(false)
-  const canSubmit = name && mainCourse && dessert && drink
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+  const [votes, setVotes] = useState<Array<Record<string, string>>>([])
+  const canSubmit = name && mainCourse && dessert && drink && !sending
 
-  function handleSubmit(e: React.MouseEvent) {
+  // Load existing votes on mount
+  useEffect(() => {
+    fetch(GAS_URL)
+      .then(r => r.json())
+      .then(d => { if (d.success) setVotes(d.data) })
+      .catch(() => {})
+  }, [submitted])
+
+  // Auto-fill if this person already voted
+  useEffect(() => {
+    if (!name || votes.length === 0) return
+    const existing = votes.find(v => v['\u59D3\u540D'] === name)
+    if (existing) {
+      const mc = mainCourses.find(o => o.name === existing['\u4E3B\u83DC'])
+      const ds = desserts.find(o => o.name === existing['\u7518\u9EDE'])
+      const dk = drinks.find(o => o.name === existing['\u98F2\u54C1'])
+      if (mc) setMainCourse(mc.id)
+      if (ds) setDessert(ds.id)
+      if (dk) setDrink(dk.id)
+      setNote(existing['\u5099\u8A3B'] || '')
+    }
+  }, [name, votes])
+
+  async function handleSubmit(e: React.MouseEvent) {
     e.stopPropagation()
     if (!canSubmit) return
-    const stored = localStorage.getItem('trip-votes')
-    const existing = stored ? JSON.parse(stored) : []
-    const idx = existing.findIndex((v: { name: string }) => v.name === name)
-    const record = { name, mainCourse, dessert, drink, note: note.trim(), timestamp: new Date().toISOString() }
-    if (idx >= 0) existing[idx] = record; else existing.push(record)
-    localStorage.setItem('trip-votes', JSON.stringify(existing))
-    setSubmitted(true)
-    confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#e7b94f', '#3b82f6', '#10b981'] })
+    setSending(true)
+    setError('')
+    const mainName = mainCourses.find(o => o.id === mainCourse)?.name || mainCourse
+    const dessertName = desserts.find(o => o.id === dessert)?.name || dessert
+    const drinkName = drinks.find(o => o.id === drink)?.name || drink
+    try {
+      await fetch(GAS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ name, mainCourse: mainName, dessert: dessertName, drink: drinkName, note: note.trim() }),
+      })
+      // no-cors 無法讀 response，但 GAS 會正確處理
+      setSubmitted(true)
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 }, colors: ['#e7b94f', '#3b82f6', '#10b981'] })
+    } catch {
+      setError('網路錯誤，請確認網路連線後再試')
+    } finally {
+      setSending(false)
+    }
   }
+
+  const votedNames = votes.map(v => v['\u59D3\u540D']).filter(Boolean)
+  const notVoted = memberNames.filter(n => !votedNames.includes(n))
 
   if (submitted) {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-8 text-center" onClick={(e) => e.stopPropagation()}>
         <p className="text-[32px] font-bold text-brand-green mono">Done</p>
         <p className="text-[13px] text-text-2 mt-1">{name} 的餐點已記錄</p>
-        <button onClick={() => setSubmitted(false)} className="mt-4 text-[13px] text-brand font-semibold">重新選擇</button>
+        <button onClick={() => setSubmitted(false)} className="mt-4 text-[13px] text-brand font-semibold">重新選擇 / 改票</button>
+        {notVoted.length > 0 && (
+          <p className="mt-4 text-[12px] text-text-3">還沒選：{notVoted.join('、')}</p>
+        )}
       </motion.div>
     )
   }
@@ -96,6 +142,8 @@ export default function MealPicker() {
 
       <p className="text-[12px] text-text-3 text-center mb-3">* 只有這餐需要先選，其他餐不用</p>
 
+      {error && <p className="text-[12px] text-red-500 text-center mb-2">{error}</p>}
+
       <motion.button
         onClick={handleSubmit} disabled={!canSubmit}
         className={`w-full py-3.5 rounded-2xl text-[14px] font-bold transition-all ${
@@ -105,7 +153,7 @@ export default function MealPicker() {
         }`}
         whileTap={canSubmit ? { scale: 0.98 } : {}}
       >
-        送出
+        {sending ? '送出中...' : '送出'}
       </motion.button>
     </div>
   )
