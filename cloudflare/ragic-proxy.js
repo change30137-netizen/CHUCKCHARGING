@@ -1,10 +1,10 @@
 const RAGIC_SOURCES = {
   "7": {
-    server: "ap13",
+    server: "ap14",
     path: "ChuckChargingCC/ragicproject-management/7",
   },
   "23": {
-    server: "ap13",
+    server: "ap14",
     path: "ChuckChargingCC/ragicproject-management/23",
   },
 };
@@ -63,14 +63,9 @@ export default {
       return jsonResponse({ error: "Unknown form" }, 400, corsHeaders);
     }
 
-    const upstreamUrl = new URL(
-      `https://${source.server}.ragic.com/${source.path}`
-    );
-    upstreamUrl.searchParams.set("api", "");
-    upstreamUrl.searchParams.set("naming", "EID");
-    upstreamUrl.searchParams.set("APIKey", env.RAGIC_API_KEY);
+    const upstreamUrl = `https://${source.server}.ragic.com/${source.path}?api&naming=EID&APIKey=${encodeURIComponent(env.RAGIC_API_KEY)}`;
 
-    const upstreamRes = await fetch(upstreamUrl.toString(), {
+    const upstreamRes = await fetch(upstreamUrl, {
       headers: { Accept: "application/json" },
     });
 
