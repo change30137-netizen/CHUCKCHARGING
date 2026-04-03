@@ -1,0 +1,6 @@
+name = "chuckcharging-ragic-proxy"
+main = "ragic-proxy.js"
+compatibility_date = "2026-04-04"
+
+[vars]
+ALLOWED_ORIGIN = "https://your-production-domain.example.com"
