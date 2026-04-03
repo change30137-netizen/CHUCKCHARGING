@@ -61,13 +61,37 @@
         // 🚀 全自動設定區 & 靜態舊資料匯入區
         // ==========================================
         const CONFIG = {
-            RAGIC_SERVER: "ap14",
-            RAGIC_PATH: "ChuckChargingCC/ragicproject-management/7",
             MAP_KEY: "AIzaSyDIYt9AZImHlL7xpb-30cyYOuAXsFufufw",
             PREFILL_RAGIC_KEY: "aE9KcVErZy9iTTJQWDJCeWZLaFM2RUtQRXd2bGxnS1lxYm9PN0pPc1J2bmRzRnN2blRzTE9JSHNyQmpnM1dPVA==" 
         };
 
-        const FIELDS = { NAME: "1000167", CAT: "1000372", ADDR: "1000190", COORDS: "1000417" };
+        const FIELDS = { NAME: "_name", CAT: "_cat", ADDR: "_addr", COORDS: "_coords" };
+        const RAGIC_SOURCES = [
+            {
+                id: "7",
+                server: "ap13",
+                path: "ChuckChargingCC/ragicproject-management/7",
+                fieldMap: {
+                    [FIELDS.NAME]: "1000167",
+                    [FIELDS.CAT]: "1000372",
+                    [FIELDS.ADDR]: "1000190",
+                    [FIELDS.COORDS]: "1000417"
+                }
+            },
+            {
+                id: "23",
+                server: "ap13",
+                path: "ChuckChargingCC/ragicproject-management/23",
+                fieldMap: {
+                    [FIELDS.NAME]: "1000545",
+                    [FIELDS.ADDR]: "1000566"
+                },
+                fixedValues: {
+                    [FIELDS.CAT]: "家充",
+                    [FIELDS.COORDS]: ""
+                }
+            }
+        ];
         const COLORS = { "專案": "#f97316", "家充": "#3b82f6", "社區": "#10b981", "default": "#64748b" };
 
         // 🌟 這裡將您 Google Sheets 的舊資料直接寫死存入系統
@@ -943,101 +967,170 @@ Huang chiao chi,新竹縣竹北市復興三路一段212號13樓
             };
         }
 
-        // --- 1. 讀取 Ragic 資料與靜態資料合併 ---
-        window.loadData = function() {
-            setSysStatus('正在同步即時資料庫...', 'fas fa-sync-alt fa-spin text-blue-400');
+        function loadRagicSource(source) {
+            return new Promise((resolve, reject) => {
+                const callbackName = `ragicCallback_${source.id}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+                const key = CONFIG.PREFILL_RAGIC_KEY;
+                const url = `https://${source.server}.ragic.com/${source.path}?api&naming=EID&APIKey=${encodeURIComponent(key)}&callback=${callbackName}`;
+                const script = document.createElement('script');
 
-            const key = CONFIG.PREFILL_RAGIC_KEY;
-            const url = `https://${CONFIG.RAGIC_SERVER}.ragic.com/${CONFIG.RAGIC_PATH}?api&naming=EID&APIKey=${encodeURIComponent(key)}&callback=ragicCallback`;
+                const cleanup = () => {
+                    delete window[callbackName];
+                    script.remove();
+                };
 
-            window.ragicCallback = function(res) {
-                if (!res || res.status === 'ERROR') {
-                    setSysStatus('資料讀取失敗，請重新整理網頁', 'fas fa-exclamation-triangle text-red-400');
-                    return;
-                }
-                
-                let data = Object.values(res);
-
-                // --- 🌟 將靜態舊家充資料合併進來 ---
-                STATIC_HOME_CHARGERS.trim().split('\n').forEach((line, index) => {
-                    const parts = line.split(',');
-                    if (parts.length >= 2) {
-                        const rawName = parts[0].trim();
-                        const rawAddr = parts.slice(1).join(',').trim();
-                        // 略過有空格(沒有名稱或沒有地址)的行數
-                        if (rawName && rawAddr) {
-                            data.push({
-                                _ragicId: 'OLD_HC_' + index,
-                                [FIELDS.NAME]: rawName,
-                                [FIELDS.CAT]: '家充',
-                                [FIELDS.ADDR]: rawAddr,
-                                [FIELDS.COORDS]: '' // 觸發自動解析
-                            });
-                        }
+                window[callbackName] = function(res) {
+                    cleanup();
+                    if (!res || res.status === 'ERROR') {
+                        reject(new Error(`Ragic ${source.id} 回傳錯誤`));
+                        return;
                     }
-                });
+                    resolve(Object.values(res));
+                };
 
-                // 過濾空地址與特定案件，並執行隱私模糊化
-                data = data.filter(item => {
-                    const addr = item[FIELDS.ADDR];
-                    const name = item[FIELDS.NAME] || '';
-                    
-                    if (name.includes('酷澎倉庫')) return false;
+                script.src = url;
+                script.onerror = () => {
+                    cleanup();
+                    reject(new Error(`Ragic ${source.id} 載入失敗`));
+                };
 
-                    const isCancelled = Object.values(item).some(val => 
-                        typeof val === 'string' && val.includes('取消')
-                    );
-                    if (isCancelled) return false;
-                    
-                    return addr && typeof addr === 'string' && addr.trim().length > 0;
-                }).map(item => {
-                    const cat = item[FIELDS.CAT] || '';
-                    if (cat === '家充') {
-                        const name = item[FIELDS.NAME] || '';
-                        if (name.length > 0) item[FIELDS.NAME] = name.charAt(0) + '宅';
-                        
-                        const addr = item[FIELDS.ADDR] || '';
-                        if (addr) {
-                            const match = addr.match(/(.*?(?:路|街|大道)(?:[一二三四五六七八九十\d]+段)?)/);
-                            if (match) {
-                                item[FIELDS.ADDR] = match[1];
-                            } else {
-                                const idx = addr.search(/[\d巷弄號樓]/);
-                                if (idx !== -1) item[FIELDS.ADDR] = addr.substring(0, idx);
-                            }
-                        }
-                    }
-                    return item;
-                });
-                
-                allData = data;
-                renderMarkersOnly(); 
+                document.body.appendChild(script);
+            });
+        }
 
-                // 檢查是否需要啟動背景解析
-                let needsSync = false;
-                for (let i = 0; i < allData.length; i++) {
-                    const coordsRaw = allData[i][FIELDS.COORDS];
-                    // 💡 修正快取ID漏洞：使用獨立 ID 確保「陳宅」們不會互相覆蓋
-                    const docId = String(allData[i]._ragicId);
-                    const hasOriginalCoords = coordsRaw && coordsRaw.includes(',') && !isNaN(parseFloat(coordsRaw.split(',')[0]));
-                    const hasCache = !!cloudCache[docId];
-                    if (!hasOriginalCoords && !hasCache) {
-                        needsSync = true; break;
-                    }
-                }
-                
-                if (needsSync) {
-                    setSysStatus('發現新工程，正在繪製地圖...', 'fas fa-cogs fa-spin text-yellow-400');
-                    setTimeout(() => { window.startDynamicMapping(); }, 1500);
-                } else {
-                    setSysStatus('✅ 地圖資料已是最新狀態', 'fas fa-check-circle text-green-400', true);
-                }
+        function normalizeRagicItem(item, source) {
+            const normalized = {
+                _ragicId: `${source.id}_${item._ragicId}`,
+                _sourceRagicId: item._ragicId,
+                _sourceFormId: source.id
             };
 
-            const script = document.createElement('script');
-            script.src = url;
-            script.onerror = () => { setSysStatus('網路連線異常，無法讀取資料', 'fas fa-wifi text-red-400'); };
-            document.body.appendChild(script);
+            Object.entries(source.fieldMap).forEach(([targetField, sourceField]) => {
+                normalized[targetField] = item[sourceField] || '';
+            });
+
+            if (source.fixedValues) {
+                Object.assign(normalized, source.fixedValues);
+            }
+
+            return normalized;
+        }
+
+        function getStaticHomeChargers() {
+            return STATIC_HOME_CHARGERS.trim().split('\n').map((line, index) => {
+                const parts = line.split(',');
+                if (parts.length < 2) return null;
+
+                const rawName = parts[0].trim();
+                const rawAddr = parts.slice(1).join(',').trim();
+                if (!rawName || !rawAddr) return null;
+
+                return {
+                    _ragicId: `OLD_HC_${index}`,
+                    _sourceFormId: 'STATIC_HOME',
+                    [FIELDS.NAME]: rawName,
+                    [FIELDS.CAT]: '家充',
+                    [FIELDS.ADDR]: rawAddr,
+                    [FIELDS.COORDS]: ''
+                };
+            }).filter(Boolean);
+        }
+
+        function dedupeRecords(items) {
+            const seen = new Set();
+            return items.filter(item => {
+                const key = [
+                    item[FIELDS.CAT] || '',
+                    item[FIELDS.NAME] || '',
+                    item[FIELDS.ADDR] || ''
+                ].join('||');
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        }
+
+        // --- 1. 讀取 Ragic 多張表單資料來源 ---
+        window.loadData = async function() {
+            setSysStatus('正在同步 Ragic 多表單資料...', 'fas fa-sync-alt fa-spin text-blue-400');
+
+            const results = await Promise.allSettled(RAGIC_SOURCES.map(loadRagicSource));
+            const failedSources = [];
+            let data = [];
+
+            results.forEach((result, index) => {
+                const source = RAGIC_SOURCES[index];
+                if (result.status === 'fulfilled') {
+                    data.push(...result.value.map(item => normalizeRagicItem(item, source)));
+                } else {
+                    failedSources.push(source.id);
+                    console.error(result.reason);
+                }
+            });
+
+            data.push(...getStaticHomeChargers());
+
+            data = dedupeRecords(data).filter(item => {
+                const addr = item[FIELDS.ADDR];
+                const name = item[FIELDS.NAME] || '';
+                
+                if (name.includes('酷澎倉庫')) return false;
+
+                const isCancelled = Object.values(item).some(val => 
+                    typeof val === 'string' && val.includes('取消')
+                );
+                if (isCancelled) return false;
+                
+                return addr && typeof addr === 'string' && addr.trim().length > 0;
+            }).map(item => {
+                const cat = item[FIELDS.CAT] || '';
+                if (cat === '家充') {
+                    const name = item[FIELDS.NAME] || '';
+                    if (name.length > 0) item[FIELDS.NAME] = name.charAt(0) + '宅';
+                    
+                    const addr = item[FIELDS.ADDR] || '';
+                    if (addr) {
+                        const match = addr.match(/(.*?(?:路|街|大道)(?:[一二三四五六七八九十\d]+段)?)/);
+                        if (match) {
+                            item[FIELDS.ADDR] = match[1];
+                        } else {
+                            const idx = addr.search(/[\d巷弄號樓]/);
+                            if (idx !== -1) item[FIELDS.ADDR] = addr.substring(0, idx);
+                        }
+                    }
+                }
+                return item;
+            });
+            
+            if (data.length === 0) {
+                setSysStatus('資料讀取失敗，請檢查 Ragic API 設定。', 'fas fa-exclamation-triangle text-red-400');
+                return;
+            }
+
+            allData = data;
+            renderMarkersOnly(); 
+
+            // 檢查是否需要啟動背景解析
+            let needsSync = false;
+            for (let i = 0; i < allData.length; i++) {
+                const coordsRaw = allData[i][FIELDS.COORDS];
+                // 以 formId_recordId 當快取 key，避免不同表單的編號互撞
+                const docId = String(allData[i]._ragicId);
+                const hasOriginalCoords = coordsRaw && coordsRaw.includes(',') && !isNaN(parseFloat(coordsRaw.split(',')[0]));
+                const hasCache = !!cloudCache[docId];
+                if (!hasOriginalCoords && !hasCache) {
+                    needsSync = true; break;
+                }
+            }
+            
+            if (needsSync) {
+                setSysStatus('發現新地址，正在繪製地圖...', 'fas fa-cogs fa-spin text-yellow-400');
+                setTimeout(() => { window.startDynamicMapping(); }, 1500);
+            } else if (failedSources.length > 0) {
+                setSysStatus(`部分資料已載入，表單 ${failedSources.join(', ')} 讀取失敗。`, 'fas fa-exclamation-circle text-yellow-400', true);
+            } else {
+                setSysStatus('✅ 地圖資料已是最新狀態', 'fas fa-check-circle text-green-400', true);
+            }
         };
 
         // --- 將所有資料轉化為圖釘 ---
