@@ -65,7 +65,7 @@
             RAGIC_PROXY_URL: window.__ragic_proxy_url || 'https://chuckcharging-ragic-proxy.change30137.workers.dev'
         };
 
-        const FIELDS = { NAME: "_name", CAT: "_cat", ADDR: "_addr", COORDS: "_coords" };
+        const FIELDS = { NAME: "_name", CAT: "_cat", ADDR: "_addr", COORDS: "_coords", STATUS: "_status" };
         const RAGIC_SOURCES = [
             {
                 id: "7",
@@ -73,14 +73,16 @@
                     [FIELDS.NAME]: "1000167",
                     [FIELDS.CAT]: "1000372",
                     [FIELDS.ADDR]: "1000190",
-                    [FIELDS.COORDS]: "1000417"
+                    [FIELDS.COORDS]: "1000417",
+                    [FIELDS.STATUS]: "1000169"
                 }
             },
             {
                 id: "23",
                 fieldMap: {
                     [FIELDS.NAME]: "1000545",
-                    [FIELDS.ADDR]: "1000566"
+                    [FIELDS.ADDR]: "1000566",
+                    [FIELDS.STATUS]: "1000546"
                 },
                 fixedValues: {
                     [FIELDS.CAT]: "家充",
@@ -1062,9 +1064,7 @@ Huang chiao chi,新竹縣竹北市復興三路一段212號13樓
                 
                 if (name.includes('酷澎倉庫')) return false;
 
-                const isCancelled = Object.values(item).some(val => 
-                    typeof val === 'string' && val.includes('取消')
-                );
+                const isCancelled = (item[FIELDS.STATUS] || "").includes("取消");
                 if (isCancelled) return false;
                 
                 return addr && typeof addr === 'string' && addr.trim().length > 0;
