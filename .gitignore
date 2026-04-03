@@ -1,3 +1,10 @@
 trip-src/node_modules
 trip-src/dist
 trip-src/*.local
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
